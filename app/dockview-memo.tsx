@@ -483,6 +483,12 @@ export default function DockviewMemo() {
     // 3. Load initial panels from saved layout or create defaults
     const initializeLayout = async () => {
       const savedData = await memoDB.getItem<any>(STORAGE_KEY);
+
+      // Guard: after the await, React Strict Mode may have unmounted/remounted
+      // the component, making this event.api stale. Skip if a newer onReady
+      // has already replaced apiRef.current.
+      if (apiRef.current !== event.api) return;
+
       const savedLayout = savedData?.layout;
       const savedTitlesMap = savedData?.titles || {};
 
@@ -507,48 +513,32 @@ export default function DockviewMemo() {
             console.error("Failed to load legacy layout", e);
           }
         } else {
-          // Default Layout — use chained addPanel with requestAnimationFrame
-          // to ensure each panel's DOM is fully mounted before positioning the next
-          requestAnimationFrame(() => {
-            try {
-              event.api.addPanel({
-                id: "memo1",
-                component: "editor",
-                title: DEFAULT_TITLES["memo1"],
-                tabComponent: "default",
-              });
-
-              requestAnimationFrame(() => {
-                try {
-                  event.api.addPanel({
-                    id: "memo2",
-                    component: "editor",
-                    title: DEFAULT_TITLES["memo2"],
-                    tabComponent: "default",
-                    position: { referencePanel: "memo1", direction: "right" },
-                  });
-
-                  requestAnimationFrame(() => {
-                    try {
-                      event.api.addPanel({
-                        id: "memo3",
-                        component: "editor",
-                        title: DEFAULT_TITLES["memo3"],
-                        tabComponent: "default",
-                        position: { referencePanel: "memo2", direction: "below" },
-                      });
-                    } catch (e) {
-                      console.error("Failed to add memo3 panel", e);
-                    }
-                  });
-                } catch (e) {
-                  console.error("Failed to add memo2 panel", e);
-                }
-              });
-            } catch (e) {
-              console.error("Failed to add memo1 panel", e);
-            }
-          });
+          // Default Layout — add panels directly (no setTimeout to avoid
+          // React Strict Mode stale-API issues)
+          try {
+            event.api.addPanel({
+              id: "memo1",
+              component: "editor",
+              title: DEFAULT_TITLES["memo1"],
+              tabComponent: "default",
+            });
+            event.api.addPanel({
+              id: "memo2",
+              component: "editor",
+              title: DEFAULT_TITLES["memo2"],
+              tabComponent: "default",
+              position: { referencePanel: "memo1", direction: "right" },
+            });
+            event.api.addPanel({
+              id: "memo3",
+              component: "editor",
+              title: DEFAULT_TITLES["memo3"],
+              tabComponent: "default",
+              position: { referencePanel: "memo2", direction: "below" },
+            });
+          } catch (e) {
+            console.error("Failed to create default layout", e);
+          }
         }
       }
     };
