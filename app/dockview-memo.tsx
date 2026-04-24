@@ -8,6 +8,7 @@ import { SettingsContext, useSettings, DEFAULT_SETTINGS, type EditorSettings } f
 import SettingsButton from "./settings-button";
 import { RightControls } from "./controls";
 import { toast } from "./toast";
+import { showSecurePrompt } from "./secure-prompt";
 import { DEFAULT_MEMOS, DEFAULT_TITLES, STORAGE_KEYS } from "./default";
 import { memoDB } from "./library/indexDB";
 import { useVisualToggleStore } from "./visual-toggle-store";
@@ -570,7 +571,7 @@ export default function DockviewMemo() {
 
   const toggleEncryption = useCallback(() => {
     if (!isEncrypted) {
-      toast.securePrompt("암호화 key를 입력하세요", async (key) => {
+      showSecurePrompt("암호화 key를 입력하세요", async (key) => {
         if (!key) return;
         let data = await memoDB.getItem<any>(STORAGE_KEY);
         if (!data) {
@@ -591,7 +592,7 @@ export default function DockviewMemo() {
         toast.success("암호화되었습니다.");
       }, { placeholder: "암호화 키 입력" });
     } else {
-      toast.securePrompt("암호화 key를 입력하세요", async (key) => {
+      showSecurePrompt("암호화 key를 입력하세요", async (key) => {
         if (!key) return;
         const data = await memoDB.getItem<any>(STORAGE_KEY);
         if (data && data.isEncrypted && data.memos) {

@@ -44,6 +44,7 @@ export const metadata: Metadata = {
 };
 
 import { Toaster } from "./toast";
+import { SecurePromptProvider } from "./secure-prompt";
 
 export default function RootLayout({
   children,
@@ -62,6 +63,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         {children}
         <Toaster />
+        <SecurePromptProvider />
       </body>
     </html>
   );

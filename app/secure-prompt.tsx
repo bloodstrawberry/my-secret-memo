@@ -1,0 +1,328 @@
+"use client";
+
+import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
+import { Icon } from "@iconify/react";
+
+interface SecurePromptOptions {
+  title?: string;
+  placeholder?: string;
+  confirmText?: string;
+  cancelText?: string;
+}
+
+interface SecurePromptState {
+  isOpen: boolean;
+  options: SecurePromptOptions;
+  onConfirm: ((value: string) => void) | null;
+}
+
+// ── Global state for imperative API ──
+let globalSetState: ((state: SecurePromptState) => void) | null = null;
+
+// ── Korean to English (Qwerty) Conversion Logic ──
+const KOR_KEY_MAP: Record<string, string> = {
+  // Consonants (Dubeolsik)
+  'ㄱ': 'r', 'ㄲ': 'R', 'ㄴ': 's', 'ㄷ': 'e', 'ㄸ': 'E', 'ㄹ': 'f', 'ㅁ': 'm', 'ㅂ': 'q', 'ㅃ': 'Q',
+  'ㅅ': 't', 'ㅆ': 'T', 'ㅇ': 'd', 'ㅈ': 'w', 'ㅉ': 'W', 'ㅊ': 'c', 'ㅋ': 'z', 'ㅌ': 'x', 'ㅍ': 'v', 'ㅎ': 'g',
+  // Vowels
+  'ㅏ': 'k', 'ㅐ': 'o', 'ㅑ': 'i', 'ㅒ': 'O', 'ㅓ': 'j', 'ㅔ': 'p', 'ㅕ': 'u', 'ㅖ': 'P', 'ㅗ': 'h', 'ㅛ': 'y',
+  'ㅜ': 'n', 'ㅠ': 'b', 'ㅡ': 'm', 'ㅣ': 'l', 'ㅘ': 'hk', 'ㅙ': 'ho', 'ㅚ': 'hl', 'ㅝ': 'nj', 'ㅞ': 'nl', 'ㅟ': 'nw', 'ㅢ': 'ml'
+};
+
+const CHOSUNG = [
+  'ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'
+];
+const JUNGSUNG = [
+  'ㅏ', 'ㅐ', 'ㅑ', 'ㅒ', 'ㅓ', 'ㅔ', 'ㅕ', 'ㅖ', 'ㅗ', 'ㅘ', 'ㅙ', 'ㅚ', 'ㅛ', 'ㅜ', 'ㅝ', 'ㅞ', 'ㅟ', 'ㅠ', 'ㅡ', 'ㅢ', 'ㅣ'
+];
+const JONGSUNG = [
+  '', 'ㄱ', 'ㄲ', 'ㄳ', 'ㄴ', 'ㄵ', 'ㄶ', 'ㄷ', 'ㄹ', 'ㄺ', 'ㄻ', 'ㄼ', 'ㄽ', 'ㄾ', 'ㄿ', 'ㅀ', 'ㅁ', 'ㅂ', 'ㅄ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'
+];
+
+const JONGSUNG_MAP: Record<string, string> = {
+  'ㄳ': 'rt', 'ㄵ': 'sw', 'ㄶ': 'sg', 'ㄺ': 'fr', 'ㄻ': 'fa', 'ㄼ': 'fq', 'ㄽ': 'ft', 'ㄾ': 'fx', 'ㄿ': 'fv', 'ㅀ': 'fg', 'ㅄ': 'qt'
+};
+
+function convertKoreanToEnglish(text: string): string {
+  let result = "";
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    
+    // Hangul Syllables (가-힣)
+    if (code >= 0xAC00 && code <= 0xD7A3) {
+      const syllableIndex = code - 0xAC00;
+      const chosungIndex = Math.floor(syllableIndex / (21 * 28));
+      const jungsungIndex = Math.floor((syllableIndex % (21 * 28)) / 28);
+      const jongsungIndex = syllableIndex % 28;
+
+      result += KOR_KEY_MAP[CHOSUNG[chosungIndex]] || "";
+      result += KOR_KEY_MAP[JUNGSUNG[jungsungIndex]] || "";
+      if (jongsungIndex > 0) {
+        const jong = JONGSUNG[jongsungIndex];
+        result += JONGSUNG_MAP[jong] || KOR_KEY_MAP[jong] || "";
+      }
+    } 
+    // Single Jamo (ㄱ-ㅣ)
+    else if (code >= 0x3131 && code <= 0x3163) {
+      const jamo = text[i];
+      result += JONGSUNG_MAP[jamo] || KOR_KEY_MAP[jamo] || "";
+    }
+    // ASCII (Standard)
+    else if (code <= 127) {
+      result += text[i];
+    }
+  }
+  return result;
+}
+
+export function showSecurePrompt(
+  title: string,
+  onConfirm: (value: string) => void,
+  options?: Omit<SecurePromptOptions, "title">
+) {
+  globalSetState?.({
+    isOpen: true,
+    options: { title, ...options },
+    onConfirm,
+  });
+}
+
+// ── Modal Component ──
+function SecurePromptModal({
+  state,
+  onClose,
+}: {
+  state: SecurePromptState;
+  onClose: () => void;
+}) {
+  const [value, setValue] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
+
+  // Reset value when opened
+  useEffect(() => {
+    if (state.isOpen) {
+      setValue("");
+      setShowPassword(false);
+      setIsClosing(false);
+      // Focus the input after mount
+      requestAnimationFrame(() => {
+        inputRef.current?.focus();
+      });
+    }
+  }, [state.isOpen]);
+
+  const handleClose = useCallback(() => {
+    setIsClosing(true);
+    setTimeout(() => {
+      onClose();
+      setIsClosing(false);
+    }, 200);
+  }, [onClose]);
+
+  const handleConfirm = useCallback(() => {
+    if (state.onConfirm) {
+      state.onConfirm(value);
+    }
+    handleClose();
+  }, [value, state.onConfirm, handleClose]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleConfirm();
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        handleClose();
+      }
+    },
+    [handleConfirm, handleClose]
+  );
+
+  const handleBackdropClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (e.target === backdropRef.current) {
+        handleClose();
+      }
+    },
+    [handleClose]
+  );
+
+  if (!state.isOpen && !isClosing) return null;
+
+  return createPortal(
+    <div
+      ref={backdropRef}
+      onClick={handleBackdropClick}
+      className={`fixed inset-0 z-[9999] flex items-start justify-center pt-[15vh] transition-all duration-200 ${
+        isClosing ? "opacity-0" : "opacity-100"
+      }`}
+      style={{ backgroundColor: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)" }}
+    >
+      <div
+        className={`w-full max-w-sm mx-4 rounded-2xl border shadow-2xl transition-all duration-200 ${
+          isClosing
+            ? "opacity-0 scale-95 translate-y-2"
+            : "opacity-100 scale-100 translate-y-0"
+        }`}
+        style={{
+          backgroundColor: "var(--panel-bg)",
+          borderColor: "var(--border-color)",
+          boxShadow: "0 25px 60px -12px rgba(0,0,0,0.35), 0 0 40px -8px rgba(244,63,94,0.15)",
+        }}
+      >
+        {/* Header */}
+        <div className="px-6 pt-6 pb-2 text-center">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-500 to-pink-600 shadow-lg shadow-rose-500/25 mb-3">
+            <Icon icon="material-symbols:lock-outline" className="w-6 h-6 text-white" />
+          </div>
+          <h2
+            className="text-base font-extrabold tracking-tight"
+            style={{ color: "var(--foreground)" }}
+          >
+            {state.options.title || "암호화 key를 입력하세요"}
+          </h2>
+        </div>
+
+        {/* Input */}
+        <div className="px-6 py-4">
+          <div className="relative flex items-center group">
+            <Icon
+              icon="material-symbols:key-outline"
+              className="absolute left-3 w-4 h-4 text-rose-500 opacity-60 group-focus-within:opacity-100 transition-opacity z-10"
+            />
+            <input
+              ref={inputRef}
+              type={showPassword ? "text" : "password"}
+              placeholder={state.options.placeholder || "암호화 키를 입력하세요..."}
+              className="w-full pl-9 pr-10 py-2.5 rounded-xl text-sm transition-all font-mono tracking-widest selection:bg-rose-500/30"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+              style={{
+                backgroundColor: "rgba(244,63,94,0.05)",
+                border: "1.5px solid rgba(244,63,94,0.3)",
+                outline: "none",
+                color: "var(--foreground)",
+                boxShadow: "inset 0 1px 3px rgba(0,0,0,0.06)",
+              }}
+              value={value}
+              onChange={(e) => {
+                const val = e.target.value;
+                // Automatically convert Korean characters to English Qwerty keys
+                const converted = convertKoreanToEnglish(val);
+                setValue(converted);
+              }}
+              onKeyDown={handleKeyDown} 
+              onFocus={(e) => {
+                e.target.style.borderColor = "rgba(244,63,94,0.6)";
+                e.target.style.boxShadow = "inset 0 1px 3px rgba(0,0,0,0.06), 0 0 0 3px rgba(244,63,94,0.15)";
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = "rgba(244,63,94,0.3)";
+                e.target.style.boxShadow = "inset 0 1px 3px rgba(0,0,0,0.06)";
+              }}
+            />
+            <button
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-2.5 p-1 rounded-md transition-colors z-10"
+              style={{
+                color: "rgba(244,63,94,0.5)",
+                outline: "none",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = "rgba(244,63,94,1)";
+                e.currentTarget.style.backgroundColor = "rgba(244,63,94,0.1)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "rgba(244,63,94,0.5)";
+                e.currentTarget.style.backgroundColor = "transparent";
+              }}
+              title={showPassword ? "비밀번호 숨기기" : "비밀번호 표시"}
+              tabIndex={-1}
+            >
+              <Icon
+                icon={
+                  showPassword
+                    ? "material-symbols:visibility-off-outline"
+                    : "material-symbols:visibility-outline"
+                }
+                className="w-4 h-4"
+              />
+            </button>
+          </div>
+        </div>
+
+        {/* Buttons */}
+        <div className="px-6 pb-5 flex justify-end gap-2">
+          <button
+            onClick={handleClose}
+            className="px-4 py-2 rounded-xl text-xs font-bold transition-all"
+            style={{
+              color: "var(--foreground)",
+              opacity: 0.5,
+              outline: "none",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.opacity = "0.8";
+              e.currentTarget.style.backgroundColor = "rgba(100,116,139,0.1)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.opacity = "0.5";
+              e.currentTarget.style.backgroundColor = "transparent";
+            }}
+          >
+            {state.options.cancelText || "취소"}
+          </button>
+          <button
+            onClick={handleConfirm}
+            className="px-6 py-2 rounded-xl text-xs font-bold text-white transition-all active:scale-95"
+            style={{
+              background: "linear-gradient(135deg, #f43f5e, #db2777)",
+              boxShadow: "0 4px 14px rgba(244,63,94,0.3)",
+              outline: "none",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "linear-gradient(135deg, #e11d48, #be185d)";
+              e.currentTarget.style.boxShadow = "0 6px 20px rgba(244,63,94,0.4)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "linear-gradient(135deg, #f43f5e, #db2777)";
+              e.currentTarget.style.boxShadow = "0 4px 14px rgba(244,63,94,0.3)";
+            }}
+          >
+            {state.options.confirmText || "확인"}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+// ── Provider Component (mount once in layout) ──
+export function SecurePromptProvider() {
+  const [state, setState] = useState<SecurePromptState>({
+    isOpen: false,
+    options: {},
+    onConfirm: null,
+  });
+
+  useEffect(() => {
+    globalSetState = setState;
+    return () => {
+      globalSetState = null;
+    };
+  }, []);
+
+  const handleClose = useCallback(() => {
+    setState({ isOpen: false, options: {}, onConfirm: null });
+  }, []);
+
+  return <SecurePromptModal state={state} onClose={handleClose} />;
+}
