@@ -60,12 +60,12 @@ export default function MarkdownEditor({ value, onChange, placeholder }: Markdow
     content: value ? (marked.parse(value) as string) : "",
     onUpdate: ({ editor }) => {
       // Get markdown directly from the editor thanks to tiptap-markdown
-      const markdown = editor.storage.markdown.getMarkdown();
+      const markdown = (editor.storage as any).markdown.getMarkdown();
       onChange(markdown);
     },
     editorProps: {
       attributes: {
-        class: "prose max-w-none focus:outline-none min-h-[300px] p-6 text-slate-700 dark:text-slate-300",
+        class: "prose max-w-none focus:outline-none h-full p-8 text-slate-700 dark:text-slate-300",
       },
     },
     immediatelyRender: false,
@@ -74,7 +74,7 @@ export default function MarkdownEditor({ value, onChange, placeholder }: Markdow
   // Sync external value changes
   useEffect(() => {
     if (editor && isMounted && value !== undefined) {
-      const currentMarkdown = editor.storage.markdown.getMarkdown();
+      const currentMarkdown = (editor.storage as any).markdown.getMarkdown();
       if (currentMarkdown !== value) {
         editor.commands.setContent(marked.parse(value) as string);
       }
@@ -94,11 +94,7 @@ export default function MarkdownEditor({ value, onChange, placeholder }: Markdow
 
   return (
     <div className="flex flex-col w-full h-full min-h-0">
-      <div className="mb-2 font-bold text-slate-700 dark:text-slate-300 text-sm flex items-center gap-2">
-        <Icon icon="material-symbols:edit-note-outline" className="w-5 h-5 text-cyan-500" />
-        상세 내용
-      </div>
-      <div className="flex-1 flex flex-col border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-slate-950 shadow-sm transition-all duration-300 focus-within:border-cyan-500/50 focus-within:ring-2 focus-within:ring-cyan-500/10">
+      <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-slate-950 transition-all duration-300">
         {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-1 p-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/80 backdrop-blur-sm">
           <ToolbarButton
@@ -214,7 +210,7 @@ export default function MarkdownEditor({ value, onChange, placeholder }: Markdow
 
         {/* Editor Area */}
         <div 
-          className="flex-1 overflow-auto custom-scrollbar cursor-text p-2"
+          className="flex-1 overflow-auto custom-scrollbar cursor-text"
           onClick={() => editor.chain().focus().run()}
         >
           <EditorContent editor={editor} className="h-full" />
@@ -224,16 +220,16 @@ export default function MarkdownEditor({ value, onChange, placeholder }: Markdow
   );
 }
 
-function ToolbarButton({ 
-  onClick, 
-  active, 
-  icon, 
-  title, 
-  disabled 
-}: { 
-  onClick: () => void; 
-  active?: boolean; 
-  icon: string; 
+function ToolbarButton({
+  onClick,
+  active,
+  icon,
+  title,
+  disabled
+}: {
+  onClick: () => void;
+  active?: boolean;
+  icon: string;
   title: string;
   disabled?: boolean;
 }) {
@@ -243,9 +239,9 @@ function ToolbarButton({
       disabled={disabled}
       title={title}
       className={`
-        p-1.5 rounded transition-all duration-200
-        ${active 
-          ? "bg-cyan-50 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 shadow-sm" 
+        p-1.5 transition-all duration-200
+        ${active
+          ? "bg-cyan-50 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 shadow-sm"
           : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"}
         ${disabled ? "opacity-30 cursor-not-allowed" : "cursor-pointer"}
       `}

@@ -17,7 +17,7 @@ function EditorPanel(props: IDockviewPanelProps) {
   const memo = memos[props.api.id] || "";
 
   return (
-    <div className="h-full w-full bg-[var(--panel-bg)] p-4 flex flex-col overflow-hidden transition-colors duration-300">
+    <div className="h-full w-full bg-[var(--panel-bg)] p-0 flex flex-col overflow-hidden transition-colors duration-300">
       <MarkdownEditor
         value={memo}
         onChange={(val) => updateMemo(props.api.id, val)}
