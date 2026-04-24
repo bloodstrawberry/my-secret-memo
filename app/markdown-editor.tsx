@@ -20,6 +20,7 @@ import { Icon } from "@iconify/react";
 import { Markdown } from "tiptap-markdown";
 import { marked } from "marked";
 import { useSettings } from "./settings-context";
+import { useVisualToggleStore } from "./visual-toggle-store";
 
 // ── Configuration ──
 const ICON_SIZE = 18;
@@ -28,11 +29,15 @@ interface MarkdownEditorProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  panelId?: string;
 }
 
-export default function MarkdownEditor({ value, onChange, placeholder }: MarkdownEditorProps) {
+export default function MarkdownEditor({ value, onChange, placeholder, panelId }: MarkdownEditorProps) {
   const [isMounted, setIsMounted] = useState(false);
   const { settings } = useSettings();
+  const { toolbarVisibility } = useVisualToggleStore();
+  const isToolbarVisible = panelId ? toolbarVisibility[panelId] !== false : true;
+
   const colorInputRef = useRef<HTMLInputElement>(null);
   const highlightInputRef = useRef<HTMLInputElement>(null);
 
@@ -138,7 +143,8 @@ export default function MarkdownEditor({ value, onChange, placeholder }: Markdow
     <div className="flex flex-col w-full h-full min-h-0 bg-[var(--panel-bg)]">
       <div className="flex-1 flex flex-col overflow-hidden transition-all duration-300">
         {/* Toolbar */}
-        <div className="flex flex-wrap items-center gap-1 p-2 border-b border-[var(--border-color)] bg-[var(--header-bg)] backdrop-blur-sm sticky top-0 z-10">
+        {isToolbarVisible && (
+          <div className="flex flex-wrap items-center gap-1 p-2 border-b border-[var(--border-color)] bg-[var(--header-bg)] backdrop-blur-sm sticky top-0 z-10">
           {/* Headings Dropdown */}
           <div className="flex items-center gap-1">
             <select
@@ -382,7 +388,8 @@ export default function MarkdownEditor({ value, onChange, placeholder }: Markdow
             />
           </div>
 
-        </div>
+          </div>
+        )}
 
         {/* Editor Area with dynamic style injection for robust settings application */}
         <div

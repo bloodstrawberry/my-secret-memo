@@ -20,6 +20,7 @@ const MemoContext = createContext<{
 
 import { SettingsContext, useSettings, DEFAULT_SETTINGS, type EditorSettings } from "./settings-context";
 import SettingsButton from "./settings-button";
+import { RightControls } from "./controls";
 
 // ── Custom Tab Component ──
 function CustomTab(props: IDockviewPanelHeaderProps) {
@@ -106,6 +107,7 @@ function EditorPanel(props: IDockviewPanelProps) {
         value={memo}
         onChange={(val) => updateMemo(props.api.id, val)}
         placeholder="메모 내용을 입력하세요..."
+        panelId={props.api.id}
       />
     </div>
   );
@@ -345,6 +347,7 @@ export default function DockviewMemo() {
               onReady={onReady}
               theme={isDarkMode ? themeDark : themeLight}
               className="dockview-theme-memo"
+              rightHeaderActionsComponent={RightControls}
             />
           </div>
 
