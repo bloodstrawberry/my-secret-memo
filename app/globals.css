@@ -77,6 +77,38 @@ body {
   --dv-group-view-border-color: var(--dv-separator);
 }
 
+/* Remove white gaps between tab groups */
+.dockview-theme-memo .groupview {
+  border: 1px solid var(--border-color);
+}
+
+/* Add bottom border to tab header area */
+.dockview-theme-memo .tabs-container {
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Visible border line between split panes */
+.dockview-theme-memo .sash {
+  background-color: var(--border-color) !important;
+  z-index: 5;
+}
+
+.dockview-theme-memo .sash.vertical {
+  border-left: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.dockview-theme-memo .sash.horizontal {
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.dark .dockview-theme-memo .sash.vertical {
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dark .dockview-theme-memo .sash.horizontal {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 .dockview-theme-memo .dv-tab {
   font-size: 10px;
   font-weight: 700;
