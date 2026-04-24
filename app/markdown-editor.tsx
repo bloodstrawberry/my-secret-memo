@@ -11,6 +11,9 @@ import { Icon } from "@iconify/react";
 import { Markdown } from "tiptap-markdown";
 import { marked } from "marked";
 
+// ── Configuration ──
+const ICON_SIZE = 18; // 아이콘 크기 (픽셀 단위)
+
 interface MarkdownEditorProps {
   value: string;
   onChange: (value: string) => void;
@@ -65,7 +68,7 @@ export default function MarkdownEditor({ value, onChange, placeholder }: Markdow
     },
     editorProps: {
       attributes: {
-        class: "prose max-w-none focus:outline-none h-full p-8 text-slate-700 dark:text-slate-300",
+        class: "prose dark:prose-invert max-w-none focus:outline-none h-full p-8 text-[var(--foreground)]",
       },
     },
     immediatelyRender: false,
@@ -93,10 +96,10 @@ export default function MarkdownEditor({ value, onChange, placeholder }: Markdow
   };
 
   return (
-    <div className="flex flex-col w-full h-full min-h-0">
-      <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-slate-950 transition-all duration-300">
+    <div className="flex flex-col w-full h-full min-h-0 bg-[var(--panel-bg)]">
+      <div className="flex-1 flex flex-col overflow-hidden transition-all duration-300">
         {/* Toolbar */}
-        <div className="flex flex-wrap items-center gap-1 p-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/80 backdrop-blur-sm">
+        <div className="flex flex-wrap items-center gap-1 p-2 border-b border-[var(--border-color)] bg-[var(--header-bg)] backdrop-blur-sm">
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleBold().run()}
             active={editor.isActive("bold")}
@@ -209,7 +212,7 @@ export default function MarkdownEditor({ value, onChange, placeholder }: Markdow
         </div>
 
         {/* Editor Area */}
-        <div 
+        <div
           className="flex-1 overflow-auto custom-scrollbar cursor-text"
           onClick={() => editor.chain().focus().run()}
         >
@@ -239,18 +242,18 @@ function ToolbarButton({
       disabled={disabled}
       title={title}
       className={`
-        p-1.5 transition-all duration-200
+        p-1 rounded-lg transition-all duration-200
         ${active
-          ? "bg-cyan-50 dark:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 shadow-sm"
-          : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"}
-        ${disabled ? "opacity-30 cursor-not-allowed" : "cursor-pointer"}
+          ? "bg-cyan-500/15 text-cyan-500 shadow-sm ring-1 ring-cyan-500/30"
+          : "text-[var(--foreground)] opacity-60 hover:opacity-100 hover:bg-slate-500/10"}
+        ${disabled ? "opacity-20 cursor-not-allowed" : "cursor-pointer"}
       `}
     >
-      <Icon icon={icon} className="w-5 h-5" />
+      <Icon icon={icon} width={ICON_SIZE} height={ICON_SIZE} />
     </button>
   );
 }
 
 function ToolbarDivider() {
-  return <div className="mx-1 h-6 w-px bg-slate-200 dark:bg-slate-800" />;
+  return <div className="mx-1 h-6 w-px bg-[var(--border-color)]" />;
 }
