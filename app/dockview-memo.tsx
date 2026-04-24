@@ -29,6 +29,9 @@ import SettingsButton from "./settings-button";
 import { RightControls } from "./controls";
 import { toast } from "./toast";
 import { DEFAULT_MEMOS, DEFAULT_TITLES, STORAGE_KEYS } from "./default";
+import { memoDB } from "./library/indexDB";
+import { useVisualToggleStore } from "./visual-toggle-store";
+import { debounce } from "es-toolkit";
 
 // ── Custom Tab Component ──
 function CustomTab(props: IDockviewPanelHeaderProps) {
@@ -138,115 +141,153 @@ export default function DockviewMemo() {
   const [isMounted, setIsMounted] = useState(false);
   const [settings, setSettings] = useState<EditorSettings>(DEFAULT_SETTINGS);
   const apiRef = useRef<DockviewReadyEvent["api"] | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const STORAGE_KEY = "my-secret-key";
+
+  // Use a ref to always have access to the latest state in debounced functions
+  const stateRef = useRef({ memos, titles, settings, isDarkMode });
+  useEffect(() => {
+    stateRef.current = { memos, titles, settings, isDarkMode };
+  }, [memos, titles, settings, isDarkMode]);
+
+  // Centralized persistence function
+  const persistState = useCallback(async (overrides?: {
+    memos?: Record<string, string>;
+    titles?: Record<string, string>;
+    settings?: EditorSettings;
+    isDarkMode?: boolean;
+    layout?: any;
+  }) => {
+    if (!isMounted) return;
+
+    const currentState = {
+      memos: overrides?.memos ?? stateRef.current.memos,
+      titles: overrides?.titles ?? stateRef.current.titles,
+      settings: overrides?.settings ?? stateRef.current.settings,
+      theme: (overrides?.isDarkMode ?? stateRef.current.isDarkMode) ? "dark" : "light",
+      layout: overrides?.layout ?? apiRef.current?.toJSON(),
+      visualToggles: useVisualToggleStore.getState().toolbarVisibility,
+    };
+
+    try {
+      await memoDB.setItem(STORAGE_KEY, currentState);
+    } catch (e) {
+      toast.error("데이터 저장에 실패했습니다.");
+      console.error("Save failed", e);
+    }
+  }, [isMounted]);
+
+  // Debounced version for frequent updates (like memo content)
+  const debouncedPersist = useRef(
+    debounce((overrides?: any) => {
+      persistState(overrides);
+    }, 1000)
+  ).current;
 
   // Initial load
   useEffect(() => {
-    setIsMounted(true);
-    const savedTheme = localStorage.getItem(STORAGE_KEYS.THEME);
-    if (savedTheme) {
-      setIsDarkMode(savedTheme === "dark");
-    }
+    const loadInitialData = async () => {
+      setIsMounted(true);
 
-    const savedSettings = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-    if (savedSettings) {
-      try {
-        setSettings(prev => ({ ...prev, ...JSON.parse(savedSettings) }));
-      } catch (e) {
-        console.error("Failed to parse saved settings", e);
-      }
-    }
+      const savedData = await memoDB.getItem<any>(STORAGE_KEY);
 
-    const savedMemos = localStorage.getItem(STORAGE_KEYS.MEMOS);
-    if (savedMemos) {
-      try {
-        setMemos(JSON.parse(savedMemos));
-      } catch (e) {
-        console.error("Failed to parse saved memos", e);
-        setMemos(DEFAULT_MEMOS);
-      }
-    } else {
-      setMemos(DEFAULT_MEMOS);
-    }
+      if (savedData) {
+        if (savedData.memos) setMemos(savedData.memos);
+        if (savedData.titles) setTitles(savedData.titles);
+        if (savedData.settings) setSettings(savedData.settings);
+        if (savedData.theme) {
+          const dark = savedData.theme === "dark";
+          setIsDarkMode(dark);
+          if (dark) document.documentElement.classList.add("dark");
+        }
+        if (savedData.visualToggles) {
+          useVisualToggleStore.setState({ toolbarVisibility: savedData.visualToggles });
+        }
+        // Layout will be loaded in onReady
+      } else {
+        // Fallback to defaults or legacy localStorage
+        const legacyMemos = localStorage.getItem(STORAGE_KEYS.MEMOS);
+        const legacyTitles = localStorage.getItem(STORAGE_KEYS.TITLES);
+        const legacySettings = localStorage.getItem(STORAGE_KEYS.SETTINGS);
+        const legacyTheme = localStorage.getItem(STORAGE_KEYS.THEME);
 
-    const savedTitles = localStorage.getItem(STORAGE_KEYS.TITLES);
-    if (savedTitles) {
-      try {
-        setTitles(JSON.parse(savedTitles));
-      } catch (e) {
-        console.error("Failed to parse saved titles", e);
-        setTitles(DEFAULT_TITLES);
+        if (legacyMemos) setMemos(JSON.parse(legacyMemos));
+        else setMemos(DEFAULT_MEMOS);
+
+        if (legacyTitles) setTitles(JSON.parse(legacyTitles));
+        else setTitles(DEFAULT_TITLES);
+
+        if (legacySettings) setSettings(JSON.parse(legacySettings));
+
+        if (legacyTheme) setIsDarkMode(legacyTheme === "dark");
       }
-    } else {
-      setTitles(DEFAULT_TITLES);
-    }
+    };
+
+    loadInitialData();
   }, []);
 
-  // Update Theme
+  // Update Theme DOM
   useEffect(() => {
     if (!isMounted) return;
     if (isDarkMode) {
       document.documentElement.classList.add("dark");
-      localStorage.setItem(STORAGE_KEYS.THEME, "dark");
     } else {
       document.documentElement.classList.remove("dark");
-      localStorage.setItem(STORAGE_KEYS.THEME, "light");
     }
   }, [isDarkMode, isMounted]);
 
-  // Auto-save
-  useEffect(() => {
-    if (isMounted) {
-      localStorage.setItem(STORAGE_KEYS.MEMOS, JSON.stringify(memos));
-    }
-  }, [memos, isMounted]);
-
   const updateMemo = useCallback((id: string, val: string) => {
-    setMemos(prev => ({ ...prev, [id]: val }));
-  }, []);
+    setMemos(prev => {
+      const next = { ...prev, [id]: val };
+      debouncedPersist({ memos: next });
+      return next;
+    });
+  }, [debouncedPersist]);
 
   const updateTitle = useCallback((id: string, title: string) => {
     setTitles(prev => {
       const next = { ...prev, [id]: title };
-      localStorage.setItem(STORAGE_KEYS.TITLES, JSON.stringify(next));
+      persistState({ titles: next });
       return next;
     });
-  }, []);
+  }, [persistState]);
 
   const updateSettings = useCallback((newSettings: Partial<EditorSettings>) => {
     setSettings(prev => {
       const next = { ...prev, ...newSettings };
-      localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(next));
+      persistState({ settings: next });
       return next;
     });
-  }, []);
+  }, [persistState]);
 
   const removeMemo = useCallback((id: string) => {
     setMemos(prev => {
       const next = { ...prev };
       delete next[id];
-      localStorage.setItem(STORAGE_KEYS.MEMOS, JSON.stringify(next));
+      // Note: titles will be cleaned up in the setTitles call below
       return next;
     });
     setTitles(prev => {
       const next = { ...prev };
       delete next[id];
-      localStorage.setItem(STORAGE_KEYS.TITLES, JSON.stringify(next));
+      persistState({ titles: next });
       return next;
     });
-  }, []);
+  }, [persistState]);
 
   const resetData = useCallback(() => {
-    toast.confirm("모든 메모 데이터와 설정을 초기화하시겠습니까?", () => {
+    toast.confirm("모든 메모 데이터와 설정을 초기화하시겠습니까?", async () => {
+      await memoDB.deleteItem(STORAGE_KEY);
       localStorage.removeItem(STORAGE_KEYS.MEMOS);
       localStorage.removeItem(STORAGE_KEYS.TITLES);
       localStorage.removeItem(STORAGE_KEYS.LAYOUT);
       localStorage.removeItem(STORAGE_KEYS.SETTINGS);
-      
+
       setMemos(DEFAULT_MEMOS);
       setTitles(DEFAULT_TITLES);
       setSettings(DEFAULT_SETTINGS);
-      
-      // Full reload to ensure Dockview resets its layout to default
+
       window.location.reload();
     });
   }, []);
@@ -260,7 +301,44 @@ export default function DockviewMemo() {
       title: `New Memo`,
       tabComponent: "default",
     });
+    setMemos(prev => ({ ...prev, [id]: "" }));
+    setTitles(prev => ({ ...prev, [id]: "New Memo" }));
+    persistState();
     toast.success("새로운 메모가 생성되었습니다.");
+  }, [persistState]);
+
+  const downloadData = useCallback(async () => {
+    const data = await memoDB.getItem(STORAGE_KEY);
+    if (!data) {
+      toast.error("저장된 데이터가 없습니다.");
+      return;
+    }
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "next-notepad.json";
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("데이터를 성공적으로 다운로드했습니다.");
+  }, []);
+
+  const uploadData = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        await memoDB.setItem(STORAGE_KEY, json);
+        toast.success("데이터를 성공적으로 업로드했습니다. 페이지를 새로고침합니다.");
+        setTimeout(() => window.location.reload(), 1500);
+      } catch (err) {
+        toast.error("데이터 업로드에 실패했습니다. 올바른 JSON 파일인지 확인해 주세요.");
+      }
+    };
+    reader.readAsText(file);
   }, []);
 
   const onReady = useCallback((event: DockviewReadyEvent) => {
@@ -268,8 +346,7 @@ export default function DockviewMemo() {
 
     // 1. Listen for layout changes to save
     event.api.onDidLayoutChange(() => {
-      const layout = event.api.toJSON();
-      localStorage.setItem(STORAGE_KEYS.LAYOUT, JSON.stringify(layout));
+      persistState();
     });
 
     // 2. Listen for panel removals to sync state
@@ -278,58 +355,61 @@ export default function DockviewMemo() {
     });
 
     // 3. Load initial panels from saved layout or create defaults
-    const savedLayoutStr = localStorage.getItem(STORAGE_KEYS.LAYOUT);
-    const savedMemosStr = localStorage.getItem(STORAGE_KEYS.MEMOS);
-    const savedTitlesStr = localStorage.getItem(STORAGE_KEYS.TITLES);
+    const initializeLayout = async () => {
+      const savedData = await memoDB.getItem<any>(STORAGE_KEY);
+      const savedLayout = savedData?.layout;
+      const savedTitlesMap = savedData?.titles || {};
 
-    let savedTitlesMap: Record<string, string> = {};
-    try {
-      if (savedTitlesStr) savedTitlesMap = JSON.parse(savedTitlesStr);
-    } catch (e) {
-      console.error("Failed to parse saved titles in onReady", e);
-    }
-
-    if (savedLayoutStr) {
-      try {
-        const layout = JSON.parse(savedLayoutStr);
-        event.api.fromJSON(layout);
-
-        // Ensure titles are synced after loading layout
-        event.api.panels.forEach(panel => {
-          if (savedTitlesMap[panel.id]) {
-            panel.api.setTitle(savedTitlesMap[panel.id]);
+      if (savedLayout) {
+        try {
+          event.api.fromJSON(savedLayout);
+          event.api.panels.forEach(panel => {
+            if (savedTitlesMap[panel.id]) {
+              panel.api.setTitle(savedTitlesMap[panel.id]);
+            }
+          });
+        } catch (e) {
+          console.error("Failed to load saved layout", e);
+        }
+      } else {
+        // Legacy fallback
+        const legacyLayoutStr = localStorage.getItem(STORAGE_KEYS.LAYOUT);
+        if (legacyLayoutStr) {
+          try {
+            event.api.fromJSON(JSON.parse(legacyLayoutStr));
+          } catch (e) {
+            console.error("Failed to load legacy layout", e);
           }
-        });
-      } catch (e) {
-        console.error("Failed to parse saved layout", e);
+        } else {
+          // Default Layout
+          const memo1 = event.api.addPanel({
+            id: "memo1",
+            component: "editor",
+            title: savedTitlesMap["memo1"] || DEFAULT_TITLES["memo1"],
+            tabComponent: "default",
+          });
+
+          const memo2 = event.api.addPanel({
+            id: "memo2",
+            component: "editor",
+            title: savedTitlesMap["memo2"] || DEFAULT_TITLES["memo2"],
+            position: { referencePanel: memo1, direction: "right" },
+            tabComponent: "default",
+          });
+
+          event.api.addPanel({
+            id: "memo3",
+            component: "editor",
+            title: savedTitlesMap["memo3"] || DEFAULT_TITLES["memo3"],
+            position: { referencePanel: memo2, direction: "below" },
+            tabComponent: "default",
+          });
+        }
       }
-    } else {
-      // Default Layout: MEMO1 (Left) | MEMO2 (Top Right)
-      //                              | MEMO3 (Bottom Right)
-      const memo1 = event.api.addPanel({
-        id: "memo1",
-        component: "editor",
-        title: savedTitlesMap["memo1"] || DEFAULT_TITLES["memo1"],
-        tabComponent: "default",
-      });
+    };
 
-      const memo2 = event.api.addPanel({
-        id: "memo2",
-        component: "editor",
-        title: savedTitlesMap["memo2"] || DEFAULT_TITLES["memo2"],
-        position: { referencePanel: memo1, direction: "right" },
-        tabComponent: "default",
-      });
-
-      event.api.addPanel({
-        id: "memo3",
-        component: "editor",
-        title: savedTitlesMap["memo3"] || DEFAULT_TITLES["memo3"],
-        position: { referencePanel: memo2, direction: "below" },
-        tabComponent: "default",
-      });
-    }
-  }, [removeMemo]);
+    initializeLayout();
+  }, [removeMemo, persistState]);
 
   if (!isMounted) return null;
 
@@ -357,7 +437,7 @@ export default function DockviewMemo() {
               </div>
               <div>
                 <h1 className="text-xl font-black tracking-tight text-[var(--foreground)] flex items-center gap-2">
-                  MEMO ORGANIZER
+                  NEXT NOTEPAD
                   <span className="px-1.5 py-0.5 rounded text-[10px] bg-cyan-500/10 text-cyan-500 border border-cyan-500/20 font-mono font-medium">PRO</span>
 
                   <SettingsButton />
@@ -372,13 +452,40 @@ export default function DockviewMemo() {
             <div className="flex items-center gap-4">
               <button
                 onClick={addMemo}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-bold transition-all shadow-lg shadow-cyan-500/20 active:scale-95"
+                title="New Memo"
+                className="flex items-center justify-center p-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white transition-all shadow-lg shadow-cyan-500/20 active:scale-95"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                New Memo
               </button>
+
+              <button
+                onClick={downloadData}
+                title="Download"
+                className="flex items-center justify-center p-2.5 rounded-xl bg-[var(--header-bg)] hover:bg-[var(--border-color)] text-[var(--foreground)] border border-[var(--border-color)] transition-all active:scale-95 shadow-sm"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+              </button>
+
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                title="Upload"
+                className="flex items-center justify-center p-2.5 rounded-xl bg-[var(--header-bg)] hover:bg-[var(--border-color)] text-[var(--foreground)] border border-[var(--border-color)] transition-all active:scale-95 shadow-sm"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+              </button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={uploadData}
+                accept=".json"
+                className="hidden"
+              />
 
               <div className="h-8 w-[1px] bg-[var(--border-color)]"></div>
 
