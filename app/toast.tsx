@@ -34,24 +34,44 @@ export const Toaster = () => {
           min-width: 320px !important;
           padding: 16px 20px !important;
           font-size: 14px !important;
+          white-space: nowrap !important;
           margin-left: auto !important;
           margin-right: auto !important;
           border-radius: 16px !important;
+          align-items: center !important;
         }
         [data-sonner-toast] [data-content] {
           flex: 1 !important;
           width: 100% !important;
+          display: flex !important;
+          align-items: center !important;
+        }
+        [data-sonner-toast] [data-icon] {
+          display: flex !important;
+          align-items: center !important;
+          align-self: center !important;
+          margin: 0 !important;
         }
         [data-sonner-toast] [data-title] {
           font-weight: 800 !important;
           letter-spacing: -0.02em !important;
-          margin-bottom: 4px !important;
-          display: block !important;
+          margin-bottom: 0 !important;
+          display: flex !important;
+          align-items: center !important;
           text-align: left !important;
         }
         [data-sonner-toast] [data-description] {
           color: var(--foreground) !important;
           opacity: 0.9 !important;
+        }
+        [data-sonner-toast] [data-button] {
+          align-self: center !important;
+        }
+        [data-sonner-toast] [data-close-button] {
+          top: 4px !important;
+          left: 4px !important;
+          right: auto !important;
+          transform: none !important;
         }
       `}} />
     </>
@@ -78,6 +98,7 @@ export const toast = {
   // Custom confirmation toast
   confirm: (message: string, onConfirm: () => void, options?: { confirmText?: string; cancelText?: string }) => {
     sonnerToast(message, {
+      closeButton: false,
       duration: Infinity,
       action: {
         label: options?.confirmText || "확인",
