@@ -158,9 +158,11 @@ export default function DockviewMemo() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [settings, setSettings] = useState<EditorSettings>(DEFAULT_SETTINGS);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success">("idle");
   const apiRef = useRef<DockviewReadyEvent["api"] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const skipPersistRef = useRef(false);
+  const statusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const STORAGE_KEY = "my-secret-key";
 
@@ -197,7 +199,14 @@ export default function DockviewMemo() {
 
     try {
       await memoDB.setItem(STORAGE_KEY, currentState);
+      setSaveStatus("success");
+      
+      if (statusTimeoutRef.current) clearTimeout(statusTimeoutRef.current);
+      statusTimeoutRef.current = setTimeout(() => {
+        setSaveStatus("idle");
+      }, 2000);
     } catch (e) {
+      setSaveStatus("idle");
       toast.error("데이터 저장에 실패했습니다.");
       console.error("Save failed", e);
     }
@@ -278,6 +287,7 @@ export default function DockviewMemo() {
   }, [isDarkMode, isMounted]);
 
   const updateMemo = useCallback((id: string, val: any, immediate = false) => {
+    setSaveStatus("saving");
     setMemos(prev => {
       const next = { ...prev, [id]: val };
       if (immediate) {
@@ -290,6 +300,7 @@ export default function DockviewMemo() {
   }, [debouncedPersist, persistState]);
 
   const updateTitle = useCallback((id: string, title: string) => {
+    setSaveStatus("saving");
     setTitles(prev => {
       const next = { ...prev, [id]: title };
       persistState({ titles: next });
@@ -550,9 +561,23 @@ export default function DockviewMemo() {
 
                   <SettingsButton />
                 </h1>
-                <div className="flex items-center gap-2 text-slate-500 text-[10px] font-medium uppercase tracking-widest">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Dockview Mode Active
+                <div className="flex items-center gap-2 text-slate-500 text-[10px] font-medium uppercase tracking-widest transition-all duration-300">
+                  {saveStatus === "saving" ? (
+                    <>
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-bounce" />
+                      <span className="text-amber-500/80 font-bold">Saving...</span>
+                    </>
+                  ) : saveStatus === "success" ? (
+                    <>
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="text-emerald-500 font-bold">Saved Successfully</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 opacity-50" />
+                      Dockview Mode Active
+                    </>
+                  )}
                 </div>
               </div>
             </div>
