@@ -16,7 +16,7 @@ export function SettingsPopover({ onClose }: { onClose: () => void }) {
       exit={{ opacity: 0, y: 10, scale: 0.95 }}
       className="absolute top-full left-0 mt-2 w-72 bg-[var(--panel-bg)] border border-[var(--border-color)] rounded-2xl shadow-2xl z-50 p-5 backdrop-blur-xl"
     >
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-2.5">
         <div className="flex justify-between items-center">
           <h3 className="text-sm font-bold text-[var(--foreground)] uppercase tracking-widest opacity-80">Editor Settings</h3>
           <button onClick={onClose} className="p-1 hover:bg-slate-500/10 rounded-full transition-colors">
@@ -120,7 +120,7 @@ export function SettingsPopover({ onClose }: { onClose: () => void }) {
             </select>
           </div>
         </div>
-        <div className="pt-2 border-t border-[var(--border-color)] flex flex-col gap-1" />
+        <div className="border-t border-[var(--border-color)] opacity-50" />
         <MemoResetButton />
       </div>
     </motion.div >
