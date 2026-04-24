@@ -19,6 +19,7 @@ import { TaskItem } from "@tiptap/extension-task-item";
 import { Icon } from "@iconify/react";
 import { Markdown } from "tiptap-markdown";
 import { marked } from "marked";
+import { useSettings } from "./dockview-memo";
 
 // ── Configuration ──
 const ICON_SIZE = 18;
@@ -31,6 +32,7 @@ interface MarkdownEditorProps {
 
 export default function MarkdownEditor({ value, onChange, placeholder }: MarkdownEditorProps) {
   const [isMounted, setIsMounted] = useState(false);
+  const { settings } = useSettings();
   const colorInputRef = useRef<HTMLInputElement>(null);
   const highlightInputRef = useRef<HTMLInputElement>(null);
 
@@ -92,7 +94,8 @@ export default function MarkdownEditor({ value, onChange, placeholder }: Markdow
     },
     editorProps: {
       attributes: {
-        class: "prose dark:prose-invert max-w-none focus:outline-none h-full p-8 text-[var(--foreground)]",
+        class: "prose dark:prose-invert max-w-none focus:outline-none h-full p-8 text-[var(--foreground)] mx-auto",
+        style: `line-height: ${settings.lineHeight}; letter-spacing: ${settings.letterSpacing}; font-size: ${settings.fontSize}; font-family: ${settings.fontFamily}; max-width: ${settings.maxWidth}; transition: all 0.2s ease;`,
       },
     },
     immediatelyRender: false,
@@ -107,6 +110,20 @@ export default function MarkdownEditor({ value, onChange, placeholder }: Markdow
       }
     }
   }, [value, editor, isMounted]);
+
+  // Sync settings changes
+  useEffect(() => {
+    if (editor && settings) {
+      editor.setOptions({
+        editorProps: {
+          attributes: {
+            class: "prose dark:prose-invert max-w-none focus:outline-none h-full p-8 text-[var(--foreground)] mx-auto",
+            style: `line-height: ${settings.lineHeight}; letter-spacing: ${settings.letterSpacing}; font-size: ${settings.fontSize}; font-family: ${settings.fontFamily}; max-width: ${settings.maxWidth}; transition: all 0.2s ease;`,
+          },
+        },
+      });
+    }
+  }, [editor, settings]);
 
   if (!isMounted || !editor) {
     return null;

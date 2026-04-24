@@ -2,6 +2,8 @@
 
 import { useState, useEffect, createContext, useContext, useCallback, useRef } from "react";
 import { DockviewReact, DockviewReadyEvent, IDockviewPanelProps, IDockviewPanelHeaderProps, themeDark, themeLight } from "dockview";
+import { motion, AnimatePresence } from "framer-motion";
+import { Icon } from "@iconify/react";
 import "dockview/dist/styles/dockview.css";
 import MarkdownEditor from "./markdown-editor";
 
@@ -17,6 +19,31 @@ const MemoContext = createContext<{
   updateMemo: () => { },
   updateTitle: () => { }
 });
+
+// ── Context for Global Settings ──
+interface EditorSettings {
+  lineHeight: string;
+  letterSpacing: string;
+  fontSize: string;
+  fontFamily: string;
+  maxWidth: string;
+}
+
+const SettingsContext = createContext<{
+  settings: EditorSettings;
+  updateSettings: (newSettings: Partial<EditorSettings>) => void;
+}>({
+  settings: {
+    lineHeight: "1.6",
+    letterSpacing: "0px",
+    fontSize: "16px",
+    fontFamily: "inherit",
+    maxWidth: "100%",
+  },
+  updateSettings: () => { },
+});
+
+export const useSettings = () => useContext(SettingsContext);
 
 // ── Custom Tab Component ──
 function CustomTab(props: IDockviewPanelHeaderProps) {
@@ -50,7 +77,7 @@ function CustomTab(props: IDockviewPanelHeaderProps) {
 
   return (
     <div
-      className="flex items-center h-full pl-0 pr-0 gap-2 min-w-0 select-none cursor-pointer group"
+      className="flex items-center h-full px-3 gap-2 min-w-0 select-none cursor-pointer group"
       onDoubleClick={() => setIsEditing(true)}
     >
       <div className="relative flex items-center min-w-[20px] max-w-[150px]">
@@ -116,12 +143,162 @@ const TAB_COMPONENTS: Record<string, React.FunctionComponent<IDockviewPanelHeade
   default: CustomTab,
 };
 
+// ── Settings Popover Component ──
+function SettingsPopover({
+  settings,
+  updateSettings,
+  onClose
+}: {
+  settings: EditorSettings;
+  updateSettings: (newSettings: Partial<EditorSettings>) => void;
+  onClose: () => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+      className="absolute top-full left-0 mt-2 w-72 bg-[var(--panel-bg)] border border-[var(--border-color)] rounded-2xl shadow-2xl z-50 p-5 backdrop-blur-xl"
+    >
+      <div className="flex flex-col gap-5">
+        <div className="flex justify-between items-center">
+          <h3 className="text-sm font-bold text-[var(--foreground)] uppercase tracking-widest opacity-80">Editor Settings</h3>
+          <button onClick={onClose} className="p-1 hover:bg-slate-500/10 rounded-full transition-colors">
+            <Icon icon="material-symbols:close" className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          {/* Font Size */}
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-[10px] font-bold uppercase tracking-tighter opacity-60">
+              <span>Font Size</span>
+              <span>{settings.fontSize}</span>
+            </div>
+            <input
+              type="range"
+              min="12"
+              max="24"
+              step="1"
+              value={parseInt(settings.fontSize)}
+              onChange={(e) => updateSettings({ fontSize: `${e.target.value}px` })}
+              className="w-full h-1.5 bg-cyan-500/10 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+            />
+          </div>
+
+          {/* Line Height */}
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-[10px] font-bold uppercase tracking-tighter opacity-60">
+              <span>Line Height</span>
+              <span>{settings.lineHeight}</span>
+            </div>
+            <input
+              type="range"
+              min="1"
+              max="2.5"
+              step="0.1"
+              value={parseFloat(settings.lineHeight)}
+              onChange={(e) => updateSettings({ lineHeight: e.target.value })}
+              className="w-full h-1.5 bg-cyan-500/10 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+            />
+          </div>
+
+          {/* Letter Spacing */}
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-[10px] font-bold uppercase tracking-tighter opacity-60">
+              <span>Letter Spacing</span>
+              <span>{settings.letterSpacing}</span>
+            </div>
+            <input
+              type="range"
+              min="-1"
+              max="5"
+              step="0.5"
+              value={parseFloat(settings.letterSpacing)}
+              onChange={(e) => updateSettings({ letterSpacing: `${e.target.value}px` })}
+              className="w-full h-1.5 bg-cyan-500/10 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+            />
+          </div>
+
+          {/* Max Width */}
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-[10px] font-bold uppercase tracking-tighter opacity-60">
+              <span>Max Width</span>
+              <span>{settings.maxWidth === "100%" ? "Full" : settings.maxWidth}</span>
+            </div>
+            <div className="flex gap-2">
+              {["600px", "800px", "1000px", "100%"].map((w) => (
+                <button
+                  key={w}
+                  onClick={() => updateSettings({ maxWidth: w })}
+                  className={`flex-1 py-1 rounded text-[10px] font-bold border transition-all ${settings.maxWidth === w
+                    ? "bg-cyan-500 border-cyan-500 text-white"
+                    : "border-[var(--border-color)] hover:bg-slate-500/5 text-[var(--foreground)]"
+                    }`}
+                >
+                  {w === "100%" ? "Full" : w}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Font Family */}
+          <div className="space-y-1.5">
+            <div className="text-[10px] font-bold uppercase tracking-tighter opacity-60">Font Family</div>
+            <select
+              value={settings.fontFamily}
+              onChange={(e) => updateSettings({ fontFamily: e.target.value })}
+              className="w-full bg-transparent border border-[var(--border-color)] rounded-lg p-2 text-xs text-[var(--foreground)] outline-none focus:ring-1 focus:ring-cyan-500/30"
+            >
+              <option value="inherit">Default (Sans)</option>
+              <option value="'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif">Pretendard</option>
+              <option value="var(--font-montserrat), sans-serif">Montserrat</option>
+              <option value="var(--font-roboto), sans-serif">Roboto</option>
+              <option value="var(--font-open-sans), sans-serif">Open Sans</option>
+              <option value="'Noto Sans KR', sans-serif">Noto Sans KR</option>
+              <option value="'Inter', sans-serif">Inter</option>
+              <option value="'전소민체', sans-serif">전소민체 (Jeon So-min)</option>
+              <option value="var(--font-lora), serif">Lora (Serif)</option>
+              <option value="'Consolas', 'Monaco', monospace">Consolas (Mono)</option>
+              <option value="var(--font-jetbrains-mono), monospace">JetBrains Mono</option>
+              <option value="Georgia, serif">Georgia (Serif)</option>
+            </select>
+          </div>
+        </div>
+
+        <button
+          onClick={() => {
+            updateSettings({
+              lineHeight: "1.6",
+              letterSpacing: "0px",
+              fontSize: "16px",
+              fontFamily: "inherit",
+              maxWidth: "100%",
+            });
+          }}
+          className="text-[10px] font-bold text-cyan-500 uppercase tracking-widest hover:underline text-center"
+        >
+          Reset to defaults
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
 // ── Main Component ──
 export default function DockviewMemo() {
   const [memos, setMemos] = useState<Record<string, string>>({});
   const [titles, setTitles] = useState<Record<string, string>>({});
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState<EditorSettings>({
+    lineHeight: "1.6",
+    letterSpacing: "0px",
+    fontSize: "16px",
+    fontFamily: "inherit",
+    maxWidth: "100%",
+  });
   const apiRef = useRef<DockviewReadyEvent["api"] | null>(null);
 
   // Initial load
@@ -130,6 +307,15 @@ export default function DockviewMemo() {
     const savedTheme = localStorage.getItem("theme");
     if (savedTheme) {
       setIsDarkMode(savedTheme === "dark");
+    }
+
+    const savedSettings = localStorage.getItem("memo-editor-settings");
+    if (savedSettings) {
+      try {
+        setSettings(prev => ({ ...prev, ...JSON.parse(savedSettings) }));
+      } catch (e) {
+        console.error("Failed to parse saved settings", e);
+      }
     }
 
     const savedMemos = localStorage.getItem("my-secret-memos-v2");
@@ -178,6 +364,14 @@ export default function DockviewMemo() {
     setTitles(prev => {
       const next = { ...prev, [id]: title };
       localStorage.setItem("my-secret-memo-titles", JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const updateSettings = useCallback((newSettings: Partial<EditorSettings>) => {
+    setSettings(prev => {
+      const next = { ...prev, ...newSettings };
+      localStorage.setItem("memo-editor-settings", JSON.stringify(next));
       return next;
     });
   }, []);
@@ -253,88 +447,109 @@ export default function DockviewMemo() {
   const totalChars = Object.values(memos).reduce((acc, curr) => acc + curr.length, 0);
 
   return (
-    <MemoContext.Provider value={{ memos, titles, updateMemo, updateTitle }}>
-      <main className="h-screen w-screen bg-[var(--background)] overflow-hidden flex flex-col font-sans relative transition-colors duration-300">
-        {/* Background blobs */}
-        <div className="fixed inset-0 overflow-hidden pointer-events-none opacity-5 dark:opacity-20 transition-opacity duration-500">
-          <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-cyan-500/10 via-transparent to-blue-500/10" />
-          <div className="absolute -top-24 -left-24 w-96 h-96 bg-cyan-500 rounded-full blur-[120px]" />
-          <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-blue-600 rounded-full blur-[120px]" />
-        </div>
+    <SettingsContext.Provider value={{ settings, updateSettings }}>
+      <MemoContext.Provider value={{ memos, titles, updateMemo, updateTitle }}>
+        <main className="h-screen w-screen bg-[var(--background)] overflow-hidden flex flex-col font-sans relative transition-colors duration-300">
+          {/* Background blobs */}
+          <div className="fixed inset-0 overflow-hidden pointer-events-none opacity-5 dark:opacity-20 transition-opacity duration-500">
+            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-cyan-500/10 via-transparent to-blue-500/10" />
+            <div className="absolute -top-24 -left-24 w-96 h-96 bg-cyan-500 rounded-full blur-[120px]" />
+            <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-blue-600 rounded-full blur-[120px]" />
+          </div>
 
-        {/* Header */}
-        <header className="px-6 py-4 flex justify-between items-center bg-[var(--header-bg)] border-b border-[var(--border-color)] backdrop-blur-xl z-10 shrink-0 transition-all duration-300">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-              </svg>
-            </div>
-            <div>
-              <h1 className="text-xl font-black tracking-tight text-[var(--foreground)] flex items-center gap-2">
-                MEMO ORGANIZER
-                <span className="px-1.5 py-0.5 rounded text-[10px] bg-cyan-500/10 text-cyan-500 border border-cyan-500/20 font-mono font-medium">PRO</span>
-              </h1>
-              <div className="flex items-center gap-2 text-slate-500 text-[10px] font-medium uppercase tracking-widest">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Dockview Mode Active
+          {/* Header */}
+          <header className="px-6 py-4 flex justify-between items-center bg-[var(--header-bg)] border-b border-[var(--border-color)] backdrop-blur-xl z-10 shrink-0 transition-all duration-300">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+              </div>
+              <div>
+                <h1 className="text-xl font-black tracking-tight text-[var(--foreground)] flex items-center gap-2">
+                  MEMO ORGANIZER
+                  <span className="px-1.5 py-0.5 rounded text-[10px] bg-cyan-500/10 text-cyan-500 border border-cyan-500/20 font-mono font-medium">PRO</span>
+
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowSettings(!showSettings)}
+                      className={`p-1.5 rounded-lg transition-all ${showSettings ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20" : "hover:bg-slate-500/10 text-[var(--foreground)] opacity-40 hover:opacity-100"}`}
+                    >
+                      <Icon icon="material-symbols:settings-outline" className={`w-5 h-5 ${showSettings ? "animate-spin-slow" : ""}`} />
+                    </button>
+
+                    <AnimatePresence>
+                      {showSettings && (
+                        <SettingsPopover
+                          settings={settings}
+                          updateSettings={updateSettings}
+                          onClose={() => setShowSettings(false)}
+                        />
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </h1>
+                <div className="flex items-center gap-2 text-slate-500 text-[10px] font-medium uppercase tracking-widest">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Dockview Mode Active
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-4">
-            <button
-              onClick={addMemo}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-bold transition-all shadow-lg shadow-cyan-500/20 active:scale-95"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              New Memo
-            </button>
-
-            <div className="h-8 w-[1px] bg-[var(--border-color)]"></div>
-
-            <button
-              onClick={() => setIsDarkMode(!isDarkMode)}
-              className="p-2.5 rounded-xl bg-[var(--border-color)] hover:scale-110 transition-all duration-300"
-            >
-              {isDarkMode ? (
-                <svg className="w-5 h-5 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+            <div className="flex items-center gap-4">
+              <button
+                onClick={addMemo}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-bold transition-all shadow-lg shadow-cyan-500/20 active:scale-95"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-              ) : (
-                <svg className="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 11-2 0V3a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
-                </svg>
-              )}
-            </button>
-          </div>
-        </header>
+                New Memo
+              </button>
 
-        {/* Dockview */}
-        <div className="flex-1 relative min-h-0 bg-[var(--background)] transition-colors duration-300">
-          <DockviewReact
-            components={COMPONENTS}
-            tabComponents={TAB_COMPONENTS}
-            onReady={onReady}
-            theme={isDarkMode ? themeDark : themeLight}
-            className="dockview-theme-memo"
-          />
-        </div>
+              <div className="h-8 w-[1px] bg-[var(--border-color)]"></div>
 
-        {/* Footer */}
-        <footer className="px-6 py-2 bg-[var(--footer-bg)] border-t border-[var(--border-color)] flex justify-between items-center z-10 shrink-0 transition-all duration-300">
-          <div className="flex gap-4 text-[10px] font-medium text-slate-500 uppercase tracking-wider">
-            <span>Total Words: {totalWords}</span>
-            <span>Total Chars: {totalChars}</span>
-            <span>Memos: {Object.keys(memos).length}</span>
+              <button
+                onClick={() => setIsDarkMode(!isDarkMode)}
+                className="p-2.5 rounded-xl bg-[var(--border-color)] hover:scale-110 transition-all duration-300"
+              >
+                {isDarkMode ? (
+                  <svg className="w-5 h-5 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 11-2 0V3a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </button>
+            </div>
+          </header>
+
+          {/* Dockview */}
+          <div className="flex-1 relative min-h-0 bg-[var(--background)] transition-colors duration-300">
+            <DockviewReact
+              components={COMPONENTS}
+              tabComponents={TAB_COMPONENTS}
+              onReady={onReady}
+              theme={isDarkMode ? themeDark : themeLight}
+              className="dockview-theme-memo"
+            />
           </div>
-          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
-            Organized with Dockview
-          </div>
-        </footer>
-      </main>
-    </MemoContext.Provider>
+
+          {/* Footer */}
+          <footer className="px-6 py-2 bg-[var(--footer-bg)] border-t border-[var(--border-color)] flex justify-between items-center z-10 shrink-0 transition-all duration-300">
+            <div className="flex gap-4 text-[10px] font-medium text-slate-500 uppercase tracking-wider">
+              <span>Total Words: {totalWords}</span>
+              <span>Total Chars: {totalChars}</span>
+              <span>Memos: {Object.keys(memos).length}</span>
+            </div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+              Organized with Dockview
+            </div>
+          </footer>
+        </main>
+      </MemoContext.Provider>
+    </SettingsContext.Provider>
   );
 }

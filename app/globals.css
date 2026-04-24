@@ -1,4 +1,11 @@
 @import "tailwindcss";
+@font-face {
+  font-family: '전소민체';
+  src: url('/font/전소민체.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
 
 @theme {
   --font-sans: var(--font-geist-sans);
@@ -125,4 +132,13 @@ body {
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: var(--dv-tab-text);
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 8s linear infinite;
 }
