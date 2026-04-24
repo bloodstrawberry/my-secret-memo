@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Icon } from "@iconify/react";
 import { useSettings, DEFAULT_SETTINGS } from "./settings-context";
+import { useMemoStore } from "./dockview-memo";
 
 export function SettingsPopover({ onClose }: { onClose: () => void }) {
   const { settings, updateSettings } = useSettings();
@@ -119,15 +120,27 @@ export function SettingsPopover({ onClose }: { onClose: () => void }) {
             </select>
           </div>
         </div>
-
-        <button
-          onClick={() => updateSettings(DEFAULT_SETTINGS)}
-          className="text-[10px] font-bold text-cyan-500 uppercase tracking-widest hover:underline text-center"
-        >
-          Reset to defaults
-        </button>
+        <div className="pt-2 border-t border-[var(--border-color)] flex flex-col gap-1" />
+        <MemoResetButton />
       </div>
-    </motion.div>
+    </motion.div >
+  );
+}
+
+function MemoResetButton() {
+  // We need to import useMemoStore but it might cause circular dependency if we import from dockview-memo
+  // However, in Next.js/React this is usually okay if it's just types/context.
+  // To be safe, I'll use a dynamic approach or just ensure dockview-memo is imported.
+  const { resetData } = useMemoStore();
+
+  return (
+    <button
+      onClick={resetData}
+      className="flex items-center justify-center gap-2 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[10px] font-bold uppercase tracking-widest transition-all active:scale-95"
+    >
+      <Icon icon="material-symbols:delete-sweep-outline" className="w-4 h-4" />
+      초기화
+    </button>
   );
 }
 

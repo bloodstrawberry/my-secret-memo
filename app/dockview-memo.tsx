@@ -6,21 +6,28 @@ import "dockview/dist/styles/dockview.css";
 import MarkdownEditor from "./markdown-editor";
 
 // ── Context for Multi-Memo Management ──
-const MemoContext = createContext<{
+export const MemoContext = createContext<{
   memos: Record<string, string>;
   titles: Record<string, string>;
   updateMemo: (id: string, val: string) => void;
   updateTitle: (id: string, title: string) => void;
+  removeMemo: (id: string) => void;
+  resetData: () => void;
 }>({
   memos: {},
   titles: {},
   updateMemo: () => { },
-  updateTitle: () => { }
+  updateTitle: () => { },
+  removeMemo: () => { },
+  resetData: () => { }
 });
+
+export const useMemoStore = () => useContext(MemoContext);
 
 import { SettingsContext, useSettings, DEFAULT_SETTINGS, type EditorSettings } from "./settings-context";
 import SettingsButton from "./settings-button";
 import { RightControls } from "./controls";
+import { toast } from "./toast";
 
 // ── Custom Tab Component ──
 function CustomTab(props: IDockviewPanelHeaderProps) {
@@ -181,7 +188,7 @@ export default function DockviewMemo() {
 
   // Auto-save
   useEffect(() => {
-    if (isMounted && Object.keys(memos).length > 0) {
+    if (isMounted) {
       localStorage.setItem("my-secret-memos-v2", JSON.stringify(memos));
     }
   }, [memos, isMounted]);
@@ -206,6 +213,33 @@ export default function DockviewMemo() {
     });
   }, []);
 
+  const removeMemo = useCallback((id: string) => {
+    setMemos(prev => {
+      const next = { ...prev };
+      delete next[id];
+      localStorage.setItem("my-secret-memos-v2", JSON.stringify(next));
+      return next;
+    });
+    setTitles(prev => {
+      const next = { ...prev };
+      delete next[id];
+      localStorage.setItem("my-secret-memo-titles", JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const resetData = useCallback(() => {
+    toast.confirm("모든 메모 데이터와 설정을 초기화하시겠습니까?", () => {
+      localStorage.removeItem("my-secret-memos-v2");
+      localStorage.removeItem("my-secret-memo-titles");
+      setMemos({});
+      setTitles({});
+      // We keep the layout as per user request "현재 레이아웃을 유지하게 해줘"
+      // But we might want to reload the editors to clear them
+      window.location.reload();
+    });
+  }, []);
+
   const addMemo = useCallback(() => {
     if (!apiRef.current) return;
     const id = `memo-${Date.now()}`;
@@ -215,12 +249,25 @@ export default function DockviewMemo() {
       title: `New Memo`,
       tabComponent: "default",
     });
+    toast.success("새로운 메모가 생성되었습니다.");
   }, []);
 
   const onReady = useCallback((event: DockviewReadyEvent) => {
     apiRef.current = event.api;
 
-    // Load initial panels from saved memos or create a default one
+    // 1. Listen for layout changes to save
+    event.api.onDidLayoutChange(() => {
+      const layout = event.api.toJSON();
+      localStorage.setItem("dockview-layout-v1", JSON.stringify(layout));
+    });
+
+    // 2. Listen for panel removals to sync state
+    event.api.onDidRemovePanel((panel) => {
+      removeMemo(panel.id);
+    });
+
+    // 3. Load initial panels from saved layout or create defaults
+    const savedLayoutStr = localStorage.getItem("dockview-layout-v1");
     const savedMemosStr = localStorage.getItem("my-secret-memos-v2");
     const savedTitlesStr = localStorage.getItem("my-secret-memo-titles");
 
@@ -231,7 +278,22 @@ export default function DockviewMemo() {
       console.error("Failed to parse saved titles in onReady", e);
     }
 
-    if (savedMemosStr) {
+    if (savedLayoutStr) {
+      try {
+        const layout = JSON.parse(savedLayoutStr);
+        event.api.fromJSON(layout);
+
+        // Ensure titles are synced after loading layout
+        event.api.panels.forEach(panel => {
+          if (savedTitles[panel.id]) {
+            panel.api.setTitle(savedTitles[panel.id]);
+          }
+        });
+      } catch (e) {
+        console.error("Failed to parse saved layout", e);
+        // Fallback to manual load if layout fails
+      }
+    } else if (savedMemosStr) {
       try {
         const parsed = JSON.parse(savedMemosStr);
         Object.keys(parsed).forEach((id, index) => {
@@ -269,7 +331,7 @@ export default function DockviewMemo() {
         tabComponent: "default",
       });
     }
-  }, []);
+  }, [removeMemo]);
 
   if (!isMounted) return null;
 
@@ -278,7 +340,7 @@ export default function DockviewMemo() {
 
   return (
     <SettingsContext.Provider value={{ settings, updateSettings }}>
-      <MemoContext.Provider value={{ memos, titles, updateMemo, updateTitle }}>
+      <MemoContext.Provider value={{ memos, titles, updateMemo, updateTitle, removeMemo, resetData }}>
         <main className="h-screen w-screen bg-[var(--background)] overflow-hidden flex flex-col font-sans relative transition-colors duration-300">
           {/* Background blobs */}
           <div className="fixed inset-0 overflow-hidden pointer-events-none opacity-5 dark:opacity-20 transition-opacity duration-500">
