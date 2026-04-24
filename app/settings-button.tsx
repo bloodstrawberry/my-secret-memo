@@ -50,7 +50,7 @@ export function SettingsPopover({ onClose }: { onClose: () => void }) {
             </div>
             <input
               type="range"
-              min="1"
+              min="0"
               max="2.5"
               step="0.1"
               value={parseFloat(settings.lineHeight)}

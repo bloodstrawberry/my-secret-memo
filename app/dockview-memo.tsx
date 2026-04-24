@@ -28,6 +28,7 @@ import { SettingsContext, useSettings, DEFAULT_SETTINGS, type EditorSettings } f
 import SettingsButton from "./settings-button";
 import { RightControls } from "./controls";
 import { toast } from "./toast";
+import { DEFAULT_MEMOS, DEFAULT_TITLES, STORAGE_KEYS } from "./default";
 
 // ── Custom Tab Component ──
 function CustomTab(props: IDockviewPanelHeaderProps) {
@@ -141,12 +142,12 @@ export default function DockviewMemo() {
   // Initial load
   useEffect(() => {
     setIsMounted(true);
-    const savedTheme = localStorage.getItem("theme");
+    const savedTheme = localStorage.getItem(STORAGE_KEYS.THEME);
     if (savedTheme) {
       setIsDarkMode(savedTheme === "dark");
     }
 
-    const savedSettings = localStorage.getItem("memo-editor-settings");
+    const savedSettings = localStorage.getItem(STORAGE_KEYS.SETTINGS);
     if (savedSettings) {
       try {
         setSettings(prev => ({ ...prev, ...JSON.parse(savedSettings) }));
@@ -155,22 +156,28 @@ export default function DockviewMemo() {
       }
     }
 
-    const savedMemos = localStorage.getItem("my-secret-memos-v2");
+    const savedMemos = localStorage.getItem(STORAGE_KEYS.MEMOS);
     if (savedMemos) {
       try {
         setMemos(JSON.parse(savedMemos));
       } catch (e) {
         console.error("Failed to parse saved memos", e);
+        setMemos(DEFAULT_MEMOS);
       }
+    } else {
+      setMemos(DEFAULT_MEMOS);
     }
 
-    const savedTitles = localStorage.getItem("my-secret-memo-titles");
+    const savedTitles = localStorage.getItem(STORAGE_KEYS.TITLES);
     if (savedTitles) {
       try {
         setTitles(JSON.parse(savedTitles));
       } catch (e) {
         console.error("Failed to parse saved titles", e);
+        setTitles(DEFAULT_TITLES);
       }
+    } else {
+      setTitles(DEFAULT_TITLES);
     }
   }, []);
 
@@ -179,17 +186,17 @@ export default function DockviewMemo() {
     if (!isMounted) return;
     if (isDarkMode) {
       document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
+      localStorage.setItem(STORAGE_KEYS.THEME, "dark");
     } else {
       document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
+      localStorage.setItem(STORAGE_KEYS.THEME, "light");
     }
   }, [isDarkMode, isMounted]);
 
   // Auto-save
   useEffect(() => {
     if (isMounted) {
-      localStorage.setItem("my-secret-memos-v2", JSON.stringify(memos));
+      localStorage.setItem(STORAGE_KEYS.MEMOS, JSON.stringify(memos));
     }
   }, [memos, isMounted]);
 
@@ -200,7 +207,7 @@ export default function DockviewMemo() {
   const updateTitle = useCallback((id: string, title: string) => {
     setTitles(prev => {
       const next = { ...prev, [id]: title };
-      localStorage.setItem("my-secret-memo-titles", JSON.stringify(next));
+      localStorage.setItem(STORAGE_KEYS.TITLES, JSON.stringify(next));
       return next;
     });
   }, []);
@@ -208,7 +215,7 @@ export default function DockviewMemo() {
   const updateSettings = useCallback((newSettings: Partial<EditorSettings>) => {
     setSettings(prev => {
       const next = { ...prev, ...newSettings };
-      localStorage.setItem("memo-editor-settings", JSON.stringify(next));
+      localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(next));
       return next;
     });
   }, []);
@@ -217,25 +224,29 @@ export default function DockviewMemo() {
     setMemos(prev => {
       const next = { ...prev };
       delete next[id];
-      localStorage.setItem("my-secret-memos-v2", JSON.stringify(next));
+      localStorage.setItem(STORAGE_KEYS.MEMOS, JSON.stringify(next));
       return next;
     });
     setTitles(prev => {
       const next = { ...prev };
       delete next[id];
-      localStorage.setItem("my-secret-memo-titles", JSON.stringify(next));
+      localStorage.setItem(STORAGE_KEYS.TITLES, JSON.stringify(next));
       return next;
     });
   }, []);
 
   const resetData = useCallback(() => {
     toast.confirm("모든 메모 데이터와 설정을 초기화하시겠습니까?", () => {
-      localStorage.removeItem("my-secret-memos-v2");
-      localStorage.removeItem("my-secret-memo-titles");
-      setMemos({});
-      setTitles({});
-      // We keep the layout as per user request "현재 레이아웃을 유지하게 해줘"
-      // But we might want to reload the editors to clear them
+      localStorage.removeItem(STORAGE_KEYS.MEMOS);
+      localStorage.removeItem(STORAGE_KEYS.TITLES);
+      localStorage.removeItem(STORAGE_KEYS.LAYOUT);
+      localStorage.removeItem(STORAGE_KEYS.SETTINGS);
+      
+      setMemos(DEFAULT_MEMOS);
+      setTitles(DEFAULT_TITLES);
+      setSettings(DEFAULT_SETTINGS);
+      
+      // Full reload to ensure Dockview resets its layout to default
       window.location.reload();
     });
   }, []);
@@ -258,7 +269,7 @@ export default function DockviewMemo() {
     // 1. Listen for layout changes to save
     event.api.onDidLayoutChange(() => {
       const layout = event.api.toJSON();
-      localStorage.setItem("dockview-layout-v1", JSON.stringify(layout));
+      localStorage.setItem(STORAGE_KEYS.LAYOUT, JSON.stringify(layout));
     });
 
     // 2. Listen for panel removals to sync state
@@ -267,13 +278,13 @@ export default function DockviewMemo() {
     });
 
     // 3. Load initial panels from saved layout or create defaults
-    const savedLayoutStr = localStorage.getItem("dockview-layout-v1");
-    const savedMemosStr = localStorage.getItem("my-secret-memos-v2");
-    const savedTitlesStr = localStorage.getItem("my-secret-memo-titles");
+    const savedLayoutStr = localStorage.getItem(STORAGE_KEYS.LAYOUT);
+    const savedMemosStr = localStorage.getItem(STORAGE_KEYS.MEMOS);
+    const savedTitlesStr = localStorage.getItem(STORAGE_KEYS.TITLES);
 
-    let savedTitles: Record<string, string> = {};
+    let savedTitlesMap: Record<string, string> = {};
     try {
-      if (savedTitlesStr) savedTitles = JSON.parse(savedTitlesStr);
+      if (savedTitlesStr) savedTitlesMap = JSON.parse(savedTitlesStr);
     } catch (e) {
       console.error("Failed to parse saved titles in onReady", e);
     }
@@ -285,40 +296,27 @@ export default function DockviewMemo() {
 
         // Ensure titles are synced after loading layout
         event.api.panels.forEach(panel => {
-          if (savedTitles[panel.id]) {
-            panel.api.setTitle(savedTitles[panel.id]);
+          if (savedTitlesMap[panel.id]) {
+            panel.api.setTitle(savedTitlesMap[panel.id]);
           }
         });
       } catch (e) {
         console.error("Failed to parse saved layout", e);
-        // Fallback to manual load if layout fails
-      }
-    } else if (savedMemosStr) {
-      try {
-        const parsed = JSON.parse(savedMemosStr);
-        Object.keys(parsed).forEach((id, index) => {
-          event.api.addPanel({
-            id: id,
-            component: "editor",
-            title: savedTitles[id] || `Memo ${index + 1}`,
-            tabComponent: "default",
-          });
-        });
-      } catch (e) {
-        console.error("Failed to parse saved memos in onReady", e);
       }
     } else {
+      // Default Layout: MEMO1 (Left) | MEMO2 (Top Right)
+      //                              | MEMO3 (Bottom Right)
       const memo1 = event.api.addPanel({
         id: "memo1",
         component: "editor",
-        title: "memo1",
+        title: savedTitlesMap["memo1"] || DEFAULT_TITLES["memo1"],
         tabComponent: "default",
       });
 
       const memo2 = event.api.addPanel({
         id: "memo2",
         component: "editor",
-        title: "memo2",
+        title: savedTitlesMap["memo2"] || DEFAULT_TITLES["memo2"],
         position: { referencePanel: memo1, direction: "right" },
         tabComponent: "default",
       });
@@ -326,7 +324,7 @@ export default function DockviewMemo() {
       event.api.addPanel({
         id: "memo3",
         component: "editor",
-        title: "memo3",
+        title: savedTitlesMap["memo3"] || DEFAULT_TITLES["memo3"],
         position: { referencePanel: memo2, direction: "below" },
         tabComponent: "default",
       });
