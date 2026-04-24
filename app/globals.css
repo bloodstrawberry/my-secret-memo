@@ -6,32 +6,131 @@
 }
 
 :root {
-  --background: #0f172a;
+  --background: #ffffff;
+  --foreground: #0f172a;
+  --header-bg: rgba(255, 255, 255, 0.98);
+  --border-color: rgba(0, 0, 0, 0.06);
+  --panel-bg: #ffffff;
+  --textarea-bg: #ffffff;
+  --preview-bg: #ffffff;
+  --footer-bg: #ffffff;
+  
+  --dv-bg: #f8fafc;
+  --dv-group-bg: #ffffff;
+  --dv-tab-bg: #ffffff;
+  --dv-active-tab-bg: #ffffff;
+  --dv-tab-text: #64748b;
+  --dv-active-tab-text: #0ea5e9;
+  --dv-separator: #f1f5f9;
+}
+
+.dark {
+  --background: #060912;
   --foreground: #f8fafc;
+  --header-bg: rgba(11, 15, 26, 0.8);
+  --border-color: rgba(255, 255, 255, 0.05);
+  --panel-bg: #0b0f1a;
+  --textarea-bg: rgba(15, 23, 42, 0.4);
+  --preview-bg: rgba(15, 23, 42, 0.2);
+  --footer-bg: rgba(11, 15, 26, 0.5);
+
+  --dv-bg: #060912;
+  --dv-group-bg: #0b0f1a;
+  --dv-tab-bg: #0b0f1a;
+  --dv-active-tab-bg: #0f172a;
+  --dv-tab-text: #475569;
+  --dv-active-tab-text: #38bdf8;
+  --dv-separator: #1e293b;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 /* Markdown Preview Styles */
 .prose {
   line-height: 1.6;
 }
-.prose h1 { @apply text-2xl font-bold mb-4 mt-2 text-white; border-bottom: 1px solid #334155; padding-bottom: 0.5rem; }
-.prose h2 { @apply text-xl font-bold mb-3 mt-4 text-white; }
-.prose h3 { @apply text-lg font-bold mb-2 mt-4 text-white; }
-.prose p { @apply mb-4 text-slate-300; }
-.prose ul { @apply list-disc ml-6 mb-4 text-slate-300; }
-.prose ol { @apply list-decimal ml-6 mb-4 text-slate-300; }
+.prose h1 { @apply text-2xl font-bold mb-4 mt-2; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; color: var(--foreground); }
+.prose h2 { @apply text-xl font-bold mb-3 mt-4; color: var(--foreground); }
+.prose h3 { @apply text-lg font-bold mb-2 mt-4; color: var(--foreground); }
+.prose p { @apply mb-4; color: var(--foreground); opacity: 0.9; }
+.prose ul { @apply list-disc ml-6 mb-4; }
+.prose ol { @apply list-decimal ml-6 mb-4; }
 .prose li { @apply mb-1; }
-.prose code { @apply bg-slate-800 px-1.5 py-0.5 rounded text-cyan-300 font-mono text-sm; }
-.prose pre { @apply bg-slate-900 p-4 rounded-lg overflow-x-auto mb-4 border border-slate-800; }
-.prose pre code { @apply bg-transparent p-0 text-slate-300; }
-.prose blockquote { @apply border-l-4 border-slate-700 pl-4 italic text-slate-400 mb-4; }
-.prose a { @apply text-cyan-400 underline hover:text-cyan-300 transition-colors; }
+.prose code { @apply bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-cyan-600 dark:text-cyan-300 font-mono text-sm; }
+.prose pre { @apply bg-slate-50 dark:bg-slate-900 p-4 rounded-lg overflow-x-auto mb-4 border border-slate-200 dark:border-slate-800; }
+.prose pre code { @apply bg-transparent p-0 text-slate-700 dark:text-slate-300; }
+.prose blockquote { @apply border-l-4 border-slate-200 dark:border-slate-700 pl-4 italic opacity-80 mb-4; }
+.prose a { @apply text-cyan-600 dark:text-cyan-500 underline hover:opacity-80 transition-colors; }
 .prose table { @apply w-full border-collapse mb-4; }
-.prose th, .prose td { @apply border border-slate-700 p-2 text-left; }
-.prose th { @apply bg-slate-800/50; }
+.prose th, .prose td { @apply border p-2 text-left; border-color: var(--border-color); }
+.prose th { background: rgba(0,0,0,0.03); }
+.dark .prose th { background: rgba(255,255,255,0.05); }
+
+/* Dockview Theme Customization */
+.dockview-theme-memo {
+  --dv-background-color: var(--dv-bg);
+  --dv-group-view-background-color: var(--dv-group-bg);
+  --dv-tabs-and-actions-container-background-color: var(--dv-group-bg);
+  --dv-active-tab-background-color: var(--dv-active-tab-bg);
+  --dv-inactive-tab-background-color: var(--dv-group-bg);
+  --dv-tab-text-color: var(--dv-tab-text);
+  --dv-active-tab-text-color: var(--dv-active-tab-text);
+  --dv-separator-color: var(--dv-separator);
+  --dv-drag-over-background-color: rgba(56, 189, 248, 0.05);
+  --dv-group-view-border-color: var(--dv-separator);
+}
+
+.dockview-theme-memo .dv-tab {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0 16px;
+  height: 36px;
+  line-height: 36px;
+  transition: all 0.2s ease;
+  border-right: 1px solid var(--border-color);
+}
+
+.dockview-theme-memo .dv-tab.dv-active-tab {
+  background-color: var(--dv-active-tab-bg);
+  box-shadow: inset 0 -2px 0 var(--dv-active-tab-text-color);
+}
+
+.dockview-theme-memo .dv-tab:hover:not(.dv-active-tab) {
+  background-color: rgba(0, 0, 0, 0.02);
+  color: var(--dv-active-tab-text);
+}
+
+.dark .dockview-theme-memo .dv-tab:hover:not(.dv-active-tab) {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.dockview-theme-memo .dv-tab-divider {
+  display: none;
+}
+
+.dockview-theme-memo .dv-watermark {
+  background-color: var(--dv-bg);
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--dv-separator);
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--dv-tab-text);
+}
