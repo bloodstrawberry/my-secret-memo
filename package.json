@@ -129,6 +129,13 @@
     "zod": "^4.3.6",
     "zustand": "^5.0.12"
   },
+  "overrides": {
+    "mui-one-time-password-input": {
+      "@mui/material": "$@mui/material",
+      "@emotion/react": "$@emotion/react",
+      "@emotion/styled": "$@emotion/styled"
+    }
+  },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
