@@ -1,15 +1,96 @@
 "use client";
 
 import { useState, useEffect, createContext, useContext, useCallback, useRef } from "react";
-import { DockviewReact, DockviewReadyEvent, IDockviewPanelProps, themeDark, themeLight } from "dockview";
+import { DockviewReact, DockviewReadyEvent, IDockviewPanelProps, IDockviewPanelHeaderProps, themeDark, themeLight } from "dockview";
 import "dockview/dist/styles/dockview.css";
 import MarkdownEditor from "./markdown-editor";
 
 // ── Context for Multi-Memo Management ──
 const MemoContext = createContext<{
   memos: Record<string, string>;
+  titles: Record<string, string>;
   updateMemo: (id: string, val: string) => void;
-}>({ memos: {}, updateMemo: () => {} });
+  updateTitle: (id: string, title: string) => void;
+}>({
+  memos: {},
+  titles: {},
+  updateMemo: () => { },
+  updateTitle: () => { }
+});
+
+// ── Custom Tab Component ──
+function CustomTab(props: IDockviewPanelHeaderProps) {
+  const { updateTitle } = useContext(MemoContext);
+  const [isEditing, setIsEditing] = useState(false);
+  const [tempTitle, setTempTitle] = useState(props.api.title || "");
+
+  // Sync tempTitle with props.api.title when it changes externally
+  useEffect(() => {
+    setTempTitle(props.api.title || "");
+  }, [props.api.title]);
+
+  const saveTitle = () => {
+    setIsEditing(false);
+    const trimmed = (tempTitle || "").trim();
+    if (trimmed && trimmed !== props.api.title) {
+      props.api.setTitle(trimmed);
+      updateTitle(props.api.id, trimmed);
+    } else {
+      setTempTitle(props.api.title || "");
+    }
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") saveTitle();
+    if (e.key === "Escape") {
+      setIsEditing(false);
+      setTempTitle(props.api.title || "");
+    }
+  };
+
+  return (
+    <div
+      className="flex items-center h-full pl-0 pr-0 gap-2 min-w-0 select-none cursor-pointer group"
+      onDoubleClick={() => setIsEditing(true)}
+    >
+      <div className="relative flex items-center min-w-[20px] max-w-[150px]">
+        {/* Ghost element to drive the width dynamically */}
+        <span className="invisible text-[10px] font-bold tracking-widest uppercase whitespace-pre px-0.5">
+          {tempTitle || " "}
+        </span>
+
+        {isEditing ? (
+          <input
+            autoFocus
+            className="absolute inset-y-0 left-0 bg-transparent text-[10px] font-bold tracking-widest uppercase outline-none border-none text-[var(--foreground)] p-0 m-0 w-full leading-none"
+            value={tempTitle}
+            onChange={(e) => setTempTitle(e.target.value)}
+            onBlur={saveTitle}
+            onKeyDown={onKeyDown}
+            onFocus={(e) => e.target.select()}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <span className="absolute inset-y-0 left-0 truncate w-full text-[10px] font-bold tracking-widest uppercase text-[var(--foreground)] opacity-70 group-hover:opacity-100 transition-opacity flex items-center">
+            {props.api.title}
+          </span>
+        )}
+      </div>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          props.api.close();
+        }}
+        className="p-0.5 hover:bg-red-500/10 hover:text-red-500 rounded transition-all shrink-0 opacity-0 group-hover:opacity-60 hover:opacity-100"
+      >
+        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  );
+}
 
 // ── Panel Components ──
 function EditorPanel(props: IDockviewPanelProps) {
@@ -31,9 +112,14 @@ const COMPONENTS: Record<string, React.FunctionComponent<IDockviewPanelProps>> =
   editor: EditorPanel,
 };
 
+const TAB_COMPONENTS: Record<string, React.FunctionComponent<IDockviewPanelHeaderProps>> = {
+  default: CustomTab,
+};
+
 // ── Main Component ──
 export default function DockviewMemo() {
   const [memos, setMemos] = useState<Record<string, string>>({});
+  const [titles, setTitles] = useState<Record<string, string>>({});
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const apiRef = useRef<DockviewReadyEvent["api"] | null>(null);
@@ -45,13 +131,22 @@ export default function DockviewMemo() {
     if (savedTheme) {
       setIsDarkMode(savedTheme === "dark");
     }
-    
+
     const savedMemos = localStorage.getItem("my-secret-memos-v2");
     if (savedMemos) {
       try {
         setMemos(JSON.parse(savedMemos));
       } catch (e) {
         console.error("Failed to parse saved memos", e);
+      }
+    }
+
+    const savedTitles = localStorage.getItem("my-secret-memo-titles");
+    if (savedTitles) {
+      try {
+        setTitles(JSON.parse(savedTitles));
+      } catch (e) {
+        console.error("Failed to parse saved titles", e);
       }
     }
   }, []);
@@ -79,6 +174,14 @@ export default function DockviewMemo() {
     setMemos(prev => ({ ...prev, [id]: val }));
   }, []);
 
+  const updateTitle = useCallback((id: string, title: string) => {
+    setTitles(prev => {
+      const next = { ...prev, [id]: title };
+      localStorage.setItem("my-secret-memo-titles", JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   const addMemo = useCallback(() => {
     if (!apiRef.current) return;
     const id = `memo-${Date.now()}`;
@@ -86,6 +189,7 @@ export default function DockviewMemo() {
       id: id,
       component: "editor",
       title: `New Memo`,
+      tabComponent: "default",
     });
   }, []);
 
@@ -93,21 +197,36 @@ export default function DockviewMemo() {
     apiRef.current = event.api;
 
     // Load initial panels from saved memos or create a default one
-    const savedMemos = localStorage.getItem("my-secret-memos-v2");
-    if (savedMemos) {
-      const parsed = JSON.parse(savedMemos);
-      Object.keys(parsed).forEach((id, index) => {
-        event.api.addPanel({
-          id: id,
-          component: "editor",
-          title: `Memo ${index + 1}`,
+    const savedMemosStr = localStorage.getItem("my-secret-memos-v2");
+    const savedTitlesStr = localStorage.getItem("my-secret-memo-titles");
+
+    let savedTitles: Record<string, string> = {};
+    try {
+      if (savedTitlesStr) savedTitles = JSON.parse(savedTitlesStr);
+    } catch (e) {
+      console.error("Failed to parse saved titles in onReady", e);
+    }
+
+    if (savedMemosStr) {
+      try {
+        const parsed = JSON.parse(savedMemosStr);
+        Object.keys(parsed).forEach((id, index) => {
+          event.api.addPanel({
+            id: id,
+            component: "editor",
+            title: savedTitles[id] || `Memo ${index + 1}`,
+            tabComponent: "default",
+          });
         });
-      });
+      } catch (e) {
+        console.error("Failed to parse saved memos in onReady", e);
+      }
     } else {
       const memo1 = event.api.addPanel({
         id: "memo1",
         component: "editor",
         title: "memo1",
+        tabComponent: "default",
       });
 
       const memo2 = event.api.addPanel({
@@ -115,6 +234,7 @@ export default function DockviewMemo() {
         component: "editor",
         title: "memo2",
         position: { referencePanel: memo1, direction: "right" },
+        tabComponent: "default",
       });
 
       event.api.addPanel({
@@ -122,6 +242,7 @@ export default function DockviewMemo() {
         component: "editor",
         title: "memo3",
         position: { referencePanel: memo2, direction: "below" },
+        tabComponent: "default",
       });
     }
   }, []);
@@ -132,7 +253,7 @@ export default function DockviewMemo() {
   const totalChars = Object.values(memos).reduce((acc, curr) => acc + curr.length, 0);
 
   return (
-    <MemoContext.Provider value={{ memos, updateMemo }}>
+    <MemoContext.Provider value={{ memos, titles, updateMemo, updateTitle }}>
       <main className="h-screen w-screen bg-[var(--background)] overflow-hidden flex flex-col font-sans relative transition-colors duration-300">
         {/* Background blobs */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none opacity-5 dark:opacity-20 transition-opacity duration-500">
@@ -195,6 +316,7 @@ export default function DockviewMemo() {
         <div className="flex-1 relative min-h-0 bg-[var(--background)] transition-colors duration-300">
           <DockviewReact
             components={COMPONENTS}
+            tabComponents={TAB_COMPONENTS}
             onReady={onReady}
             theme={isDarkMode ? themeDark : themeLight}
             className="dockview-theme-memo"
