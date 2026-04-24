@@ -1,0 +1,380 @@
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { debounce } from "es-toolkit";
+import { toast } from "../../toast";
+import { showSecurePrompt } from "../../secure-prompt";
+import { DEFAULT_MEMOS, DEFAULT_TITLES, STORAGE_KEYS } from "../../default";
+import { memoDB } from "../../library/indexDB";
+import { useVisualToggleStore } from "../../visual-toggle-store";
+import { EditorSettings, DEFAULT_SETTINGS } from "../../settings-context";
+import { encryptMemosText, decryptMemosText } from "./utils";
+import { DockviewReadyEvent } from "dockview";
+
+export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] | null>) {
+  const [memos, setMemos] = useState<Record<string, any>>({});
+  const [titles, setTitles] = useState<Record<string, string>>({});
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  const [settings, setSettings] = useState<EditorSettings>(DEFAULT_SETTINGS);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success">("idle");
+  const [progressWidth, setProgressWidth] = useState("0%");
+  const [isEncrypted, setIsEncrypted] = useState(false);
+  
+  const skipPersistRef = useRef(false);
+  const statusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSaveTimeRef = useRef<number>(Date.now());
+  const lastInputTimeRef = useRef<number>(0);
+  const versionRef = useRef<number>(0);
+  const lastSavedVersionRef = useRef<number>(0);
+  const STORAGE_KEY = "my-secret-key";
+
+  const isEncryptedRef = useRef(false);
+  useEffect(() => {
+    isEncryptedRef.current = isEncrypted;
+  }, [isEncrypted]);
+
+  // Use a ref to always have access to the latest state in debounced functions
+  const stateRef = useRef({ memos, titles, settings, isDarkMode });
+  stateRef.current = { memos, titles, settings, isDarkMode };
+
+  // Centralized persistence function
+  const persistState = useCallback(async (overrides?: {
+    memos?: Record<string, any>;
+    titles?: Record<string, string>;
+    settings?: EditorSettings;
+    isDarkMode?: boolean;
+    layout?: any;
+    silent?: boolean;
+  }) => {
+    if (!isMounted || skipPersistRef.current) return;
+
+    if (isEncryptedRef.current) {
+      if (versionRef.current === lastSavedVersionRef.current) {
+        setSaveStatus("idle");
+      }
+      return;
+    }
+
+    const layout = overrides?.layout ?? apiRef.current?.toJSON();
+    if (!layout) return;
+
+    const currentState = {
+      memos: overrides?.memos ?? stateRef.current.memos,
+      titles: overrides?.titles ?? stateRef.current.titles,
+      settings: overrides?.settings ?? stateRef.current.settings,
+      theme: (overrides?.isDarkMode ?? stateRef.current.isDarkMode) ? "dark" : "light",
+      layout: layout,
+      visualToggles: useVisualToggleStore.getState().toolbarVisibility,
+    };
+
+    const saveVersion = versionRef.current;
+
+    try {
+      await memoDB.setItem(STORAGE_KEY, currentState);
+      lastSaveTimeRef.current = Date.now();
+      lastSavedVersionRef.current = Math.max(lastSavedVersionRef.current, saveVersion);
+
+      if (!overrides?.silent && versionRef.current === lastSavedVersionRef.current) {
+        setSaveStatus("success");
+        if (statusTimeoutRef.current) clearTimeout(statusTimeoutRef.current);
+        statusTimeoutRef.current = setTimeout(() => {
+          setSaveStatus(prev => prev === "success" ? "idle" : prev);
+        }, 2000);
+      }
+    } catch (e) {
+      setSaveStatus("idle");
+      toast.error("데이터 저장에 실패했습니다.");
+      console.error("Save failed", e);
+    }
+  }, [isMounted, apiRef]);
+
+  const persistStateRef = useRef(persistState);
+  persistStateRef.current = persistState;
+
+  const debouncedPersist = useMemo(() =>
+    debounce((overrides?: any) => {
+      persistStateRef.current(overrides);
+    }, 1000)
+    , []);
+
+  // Initial load
+  useEffect(() => {
+    const loadInitialData = async () => {
+      const savedData = await memoDB.getItem<any>(STORAGE_KEY);
+
+      if (savedData) {
+        if (savedData.isEncrypted) {
+          setIsEncrypted(true);
+          isEncryptedRef.current = true;
+          setMemos(DEFAULT_MEMOS);
+          setTitles(DEFAULT_TITLES);
+          stateRef.current = {
+            memos: DEFAULT_MEMOS,
+            titles: DEFAULT_TITLES,
+            settings: savedData.settings || DEFAULT_SETTINGS,
+            isDarkMode: savedData.theme === "dark"
+          };
+        } else {
+          if (savedData.memos) setMemos(savedData.memos);
+          if (savedData.titles) setTitles(savedData.titles);
+          stateRef.current = {
+            memos: savedData.memos || {},
+            titles: savedData.titles || {},
+            settings: savedData.settings || DEFAULT_SETTINGS,
+            isDarkMode: savedData.theme === "dark"
+          };
+        }
+
+        if (savedData.settings) setSettings(savedData.settings);
+        if (savedData.theme) {
+          const dark = savedData.theme === "dark";
+          setIsDarkMode(dark);
+          if (dark) document.documentElement.classList.add("dark");
+        }
+        if (savedData.visualToggles) {
+          useVisualToggleStore.setState({ toolbarVisibility: savedData.visualToggles });
+        }
+      } else {
+        const legacyMemos = localStorage.getItem(STORAGE_KEYS.MEMOS);
+        const legacyTitles = localStorage.getItem(STORAGE_KEYS.TITLES);
+        const legacySettings = localStorage.getItem(STORAGE_KEYS.SETTINGS);
+        const legacyTheme = localStorage.getItem(STORAGE_KEYS.THEME);
+
+        const initialMemos = legacyMemos ? JSON.parse(legacyMemos) : DEFAULT_MEMOS;
+        const initialTitles = legacyTitles ? JSON.parse(legacyTitles) : DEFAULT_TITLES;
+        const initialSettings = legacySettings ? JSON.parse(legacySettings) : DEFAULT_SETTINGS;
+        const initialIsDark = legacyTheme === "dark";
+
+        setMemos(initialMemos);
+        setTitles(initialTitles);
+        setSettings(initialSettings);
+        setIsDarkMode(initialIsDark);
+
+        stateRef.current = {
+          memos: initialMemos,
+          titles: initialTitles,
+          settings: initialSettings,
+          isDarkMode: initialIsDark
+        };
+      }
+      setIsMounted(true);
+    };
+
+    loadInitialData();
+  }, []);
+
+  // Update Theme DOM
+  useEffect(() => {
+    if (!isMounted) return;
+    if (isDarkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [isDarkMode, isMounted]);
+
+  const updateMemo = useCallback((id: string, val: any, immediate = false) => {
+    versionRef.current++;
+    lastInputTimeRef.current = Date.now();
+    setSaveStatus(prev => prev !== "saving" ? "saving" : prev);
+
+    const nextMemos = { ...stateRef.current.memos, [id]: val };
+    setMemos(nextMemos);
+
+    const now = Date.now();
+    if (immediate || (now - lastSaveTimeRef.current >= 15000)) {
+      debouncedPersist.cancel();
+      persistState({ memos: nextMemos, silent: !immediate });
+    } else {
+      debouncedPersist({ memos: nextMemos });
+    }
+  }, [debouncedPersist, persistState]);
+
+  const updateTitle = useCallback((id: string, title: string) => {
+    versionRef.current++;
+    lastInputTimeRef.current = Date.now();
+    setSaveStatus(prev => prev !== "saving" ? "saving" : prev);
+
+    const nextTitles = { ...stateRef.current.titles, [id]: title };
+    setTitles(nextTitles);
+    persistState({ titles: nextTitles });
+  }, [persistState]);
+
+  const updateSettings = useCallback((newSettings: Partial<EditorSettings>) => {
+    versionRef.current++;
+    lastInputTimeRef.current = Date.now();
+    setSaveStatus(prev => prev !== "saving" ? "saving" : prev);
+
+    const nextSettings = { ...stateRef.current.settings, ...newSettings };
+    setSettings(nextSettings);
+    persistState({ settings: nextSettings });
+  }, [persistState]);
+
+  useEffect(() => {
+    if (saveStatus === "saving") {
+      setProgressWidth("0%");
+      const t = setTimeout(() => setProgressWidth("95%"), 50);
+      return () => clearTimeout(t);
+    } else if (saveStatus === "success") {
+      setProgressWidth("100%");
+    } else {
+      const t = setTimeout(() => {
+        if (saveStatus === "idle") setProgressWidth("0%");
+      }, 2000);
+      return () => clearTimeout(t);
+    }
+  }, [saveStatus]);
+
+  const removeMemo = useCallback((id: string) => {
+    const nextMemos = { ...stateRef.current.memos };
+    delete nextMemos[id];
+    setMemos(nextMemos);
+
+    const nextTitles = { ...stateRef.current.titles };
+    delete nextTitles[id];
+    setTitles(nextTitles);
+
+    persistState({ titles: nextTitles, memos: nextMemos });
+  }, [persistState]);
+
+  const resetData = useCallback(() => {
+    toast.confirm("모든 메모 데이터와 설정을 초기화하시겠습니까?", async () => {
+      skipPersistRef.current = true;
+      await memoDB.deleteItem(STORAGE_KEY);
+      localStorage.removeItem(STORAGE_KEYS.MEMOS);
+      localStorage.removeItem(STORAGE_KEYS.TITLES);
+      localStorage.removeItem(STORAGE_KEYS.LAYOUT);
+      localStorage.removeItem(STORAGE_KEYS.SETTINGS);
+      window.location.reload();
+    });
+  }, []);
+
+  const addMemo = useCallback(() => {
+    if (!apiRef.current) return;
+    const id = `memo-${Date.now()}`;
+    apiRef.current.addPanel({
+      id: id,
+      component: "editor",
+      title: `New Memo`,
+      tabComponent: "default",
+    });
+    setMemos(prev => ({ ...prev, [id]: { type: "doc", content: [{ type: "paragraph" }] } }));
+    setTitles(prev => ({ ...prev, [id]: "New Memo" }));
+    persistState();
+    toast.success("새로운 메모가 생성되었습니다.");
+  }, [persistState, apiRef]);
+
+  const downloadData = useCallback(async () => {
+    const data = await memoDB.getItem(STORAGE_KEY);
+    if (!data) {
+      toast.error("저장된 데이터가 없습니다.");
+      return;
+    }
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "next-notepad.json";
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("데이터를 성공적으로 다운로드했습니다.");
+  }, []);
+
+  const uploadData = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        skipPersistRef.current = true;
+        await memoDB.setItem(STORAGE_KEY, json);
+
+        if (json.isEncrypted) {
+          setIsEncrypted(true);
+          isEncryptedRef.current = true;
+          setMemos(DEFAULT_MEMOS);
+          setTitles(DEFAULT_TITLES);
+        } else {
+          setIsEncrypted(false);
+          isEncryptedRef.current = false;
+          if (json.memos) setMemos(json.memos);
+          if (json.titles) setTitles(json.titles);
+        }
+        if (json.settings) setSettings(json.settings);
+        if (json.theme) {
+          setIsDarkMode(json.theme === "dark");
+        }
+
+        if (json.layout && apiRef.current) {
+          try {
+            apiRef.current.fromJSON(json.layout);
+          } catch (e) {
+            console.error("Layout restore failed during upload", e);
+          }
+        }
+
+        toast.success("데이터를 성공적으로 업로드했습니다.");
+        setTimeout(() => {
+          skipPersistRef.current = false;
+          window.location.reload();
+        }, 1000);
+      } catch (err) {
+        skipPersistRef.current = false;
+        toast.error("데이터 업로드에 실패했습니다. 올바른 JSON 파일인지 확인해 주세요.");
+      }
+    };
+    reader.readAsText(file);
+  }, [apiRef]);
+
+  const toggleEncryption = useCallback(() => {
+    if (!isEncrypted) {
+      showSecurePrompt("암호화 key를 입력하세요", async (key) => {
+        if (!key) return;
+        let data = await memoDB.getItem<any>(STORAGE_KEY);
+        if (!data) {
+          data = { memos: stateRef.current.memos, titles: stateRef.current.titles };
+        }
+        const memosToEncrypt = data.memos || stateRef.current.memos;
+        data.memos = encryptMemosText(memosToEncrypt, key);
+        data.isEncrypted = true;
+        await memoDB.setItem(STORAGE_KEY, data);
+        setIsEncrypted(true);
+        isEncryptedRef.current = true;
+        setMemos(DEFAULT_MEMOS);
+        setTitles(DEFAULT_TITLES);
+        stateRef.current.memos = DEFAULT_MEMOS;
+        stateRef.current.titles = DEFAULT_TITLES;
+        toast.success("암호화되었습니다.");
+      }, { placeholder: "암호화 키 입력" });
+    } else {
+      showSecurePrompt("암호화 key를 입력하세요", async (key) => {
+        if (!key) return;
+        const data = await memoDB.getItem<any>(STORAGE_KEY);
+        if (data && data.isEncrypted && data.memos) {
+          let decryptedMemos;
+          decryptedMemos = decryptMemosText(data.memos, key);
+          data.memos = decryptedMemos;
+          data.isEncrypted = false;
+          await memoDB.setItem(STORAGE_KEY, data);
+          setIsEncrypted(false);
+          isEncryptedRef.current = false;
+          setMemos(decryptedMemos);
+          if (data.titles) setTitles(data.titles);
+          stateRef.current.memos = decryptedMemos;
+          stateRef.current.titles = data.titles || DEFAULT_TITLES;
+          toast.success("암호화가 해제되었습니다.");
+        } else {
+          setIsEncrypted(false);
+          isEncryptedRef.current = false;
+        }
+      }, { placeholder: "복호화 키 입력" });
+    }
+  }, [isEncrypted]);
+
+  return {
+    memos, titles, isDarkMode, setIsDarkMode, isMounted, settings, updateSettings,
+    saveStatus, progressWidth, isEncrypted, persistState, removeMemo, resetData,
+    updateMemo, updateTitle, addMemo, downloadData, uploadData, toggleEncryption
+  };
+}
