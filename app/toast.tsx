@@ -31,17 +31,27 @@ export const Toaster = () => {
         [data-sonner-toast] {
           width: var(--width) !important;
           max-width: var(--max-width) !important;
-          min-width: 350px !important;
-          white-space: nowrap !important;
-          padding: 12px 20px !important;
-          font-size: 13px !important;
+          min-width: 320px !important;
+          padding: 16px 20px !important;
+          font-size: 14px !important;
           margin-left: auto !important;
           margin-right: auto !important;
+          border-radius: 16px !important;
+        }
+        [data-sonner-toast] [data-content] {
+          flex: 1 !important;
+          width: 100% !important;
         }
         [data-sonner-toast] [data-title] {
-          white-space: nowrap !important;
-          text-align: center !important;
-          flex: 1 !important;
+          font-weight: 800 !important;
+          letter-spacing: -0.02em !important;
+          margin-bottom: 4px !important;
+          display: block !important;
+          text-align: left !important;
+        }
+        [data-sonner-toast] [data-description] {
+          color: var(--foreground) !important;
+          opacity: 0.9 !important;
         }
       `}} />
     </>
@@ -78,6 +88,55 @@ export const toast = {
         onClick: () => {},
       },
       icon: <Icon icon="material-symbols:help-outline" className="w-5 h-5 text-cyan-500" />,
+    });
+  },
+  // Custom prompt toast
+  prompt: (message: string, onConfirm: (value: string) => void, options?: { placeholder?: string; confirmText?: string; cancelText?: string }) => {
+    let currentValue = "";
+    const toastId = sonnerToast(message, {
+      duration: Infinity,
+      description: (
+        <div className="flex flex-col gap-4 mt-3 w-full">
+          <div className="relative flex items-center group">
+            <Icon icon="material-symbols:link" className="absolute left-3 w-4 h-4 text-cyan-500 opacity-60 group-focus-within:opacity-100 transition-opacity" />
+            <input
+              type="text"
+              placeholder={options?.placeholder || "내용을 입력하세요..."}
+              className="w-full pl-9 pr-3 py-2.5 bg-slate-500/5 border border-[var(--border-color)] rounded-xl outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500/50 text-sm transition-all shadow-inner"
+              autoFocus
+              onChange={(e) => currentValue = e.target.value}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  onConfirm(currentValue);
+                  sonnerToast.dismiss(toastId);
+                }
+                if (e.key === "Escape") {
+                  sonnerToast.dismiss(toastId);
+                }
+              }}
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => sonnerToast.dismiss(toastId)}
+              className="px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-500/10 transition-colors text-slate-500"
+            >
+              {options?.cancelText || "취소"}
+            </button>
+            <button
+              onClick={() => {
+                onConfirm(currentValue);
+                sonnerToast.dismiss(toastId);
+              }}
+              className="px-6 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 text-white shadow-lg shadow-cyan-500/20 hover:bg-cyan-600 transition-all active:scale-95"
+            >
+              {options?.confirmText || "확인"}
+            </button>
+          </div>
+        </div>
+      ),
+      // We use our own buttons in description for full layout control
+      icon: null, 
     });
   }
 };

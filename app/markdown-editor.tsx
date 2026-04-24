@@ -20,6 +20,8 @@ import { Icon } from "@iconify/react";
 import { Markdown } from "tiptap-markdown";
 import { useSettings } from "./settings-context";
 import { useVisualToggleStore } from "./visual-toggle-store";
+import { toast } from "./toast";
+import { debounce } from "es-toolkit";
 
 // ── Configuration ──
 const ICON_SIZE = 18;
@@ -49,6 +51,24 @@ export default function MarkdownEditor({ value, onChange, onBlur, placeholder, p
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // Track the last value we sent to the parent to distinguish between internal and external changes
+  const lastSentValueRef = useRef<string>(JSON.stringify(value));
+  const lastEmitTimeRef = useRef<number>(Date.now());
+
+  // Debounced version of onChange to avoid constant parent re-renders
+  const debouncedOnChange = useRef(
+    debounce((val: EditorJSON) => {
+      lastSentValueRef.current = JSON.stringify(val);
+      lastEmitTimeRef.current = Date.now();
+      onChange(val);
+    }, 600)
+  ).current;
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => debouncedOnChange.cancel();
+  }, [debouncedOnChange]);
 
   const editor = useEditor({
     extensions: [
@@ -99,10 +119,24 @@ export default function MarkdownEditor({ value, onChange, onBlur, placeholder, p
     ],
     content: value || "",
     onUpdate: ({ editor }) => {
-      onChange(editor.getJSON());
+      const json = editor.getJSON();
+      const now = Date.now();
+
+      // If more than 2.5 seconds passed since last emit, force an update (maxWait)
+      if (now - lastEmitTimeRef.current >= 2500) {
+        debouncedOnChange.cancel();
+        lastSentValueRef.current = JSON.stringify(json);
+        lastEmitTimeRef.current = now;
+        onChange(json);
+      } else {
+        debouncedOnChange(json);
+      }
     },
     onBlur: ({ editor }) => {
-      onBlur?.(editor.getJSON());
+      const json = editor.getJSON();
+      debouncedOnChange.cancel();
+      lastSentValueRef.current = JSON.stringify(json);
+      onBlur?.(json);
     },
     editorProps: {
       attributes: {
@@ -115,10 +149,14 @@ export default function MarkdownEditor({ value, onChange, onBlur, placeholder, p
   // Sync external value changes (compare by JSON string to avoid unnecessary updates)
   useEffect(() => {
     if (editor && isMounted && value !== undefined) {
-      const currentJSON = JSON.stringify(editor.getJSON());
       const incomingJSON = typeof value === 'string' ? value : JSON.stringify(value);
-      if (currentJSON !== incomingJSON) {
+      const currentJSON = JSON.stringify(editor.getJSON());
+
+      // ONLY set content if the incoming value is different from current editor content
+      // AND it's different from the last value we sent to the parent (meaning it's an external change)
+      if (incomingJSON !== currentJSON && incomingJSON !== lastSentValueRef.current) {
         editor.commands.setContent(value);
+        lastSentValueRef.current = incomingJSON;
       }
     }
   }, [value, editor, isMounted]);
@@ -141,10 +179,11 @@ export default function MarkdownEditor({ value, onChange, onBlur, placeholder, p
   }
 
   const addLink = () => {
-    const url = window.prompt("URL을 입력하세요");
-    if (url) {
-      editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
-    }
+    toast.prompt("URL을 입력하세요", (url) => {
+      if (url) {
+        editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
+      }
+    }, { placeholder: "https://..." });
   };
 
   return (
@@ -417,6 +456,12 @@ export default function MarkdownEditor({ value, onChange, onBlur, placeholder, p
             /* Ensure all children inherit the font-family */
             .tiptap.prose * {
               font-family: inherit !important;
+            }
+            .tiptap.prose hr {
+              margin: 2em 0 !important;
+              border: 0 !important;
+              border-top: 1px solid var(--hr-color, #000000) !important;
+              opacity: 1 !important;
             }
             /* Specific overrides for common prose elements if needed */
             .tiptap.prose p, .tiptap.prose h1, .tiptap.prose h2, .tiptap.prose h3, .tiptap.prose li {

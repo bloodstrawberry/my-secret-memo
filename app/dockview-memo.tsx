@@ -1,10 +1,17 @@
 "use client";
 
-import { useState, useEffect, createContext, useContext, useCallback, useRef } from "react";
+import { useState, useEffect, createContext, useContext, useCallback, useRef, useMemo } from "react";
 import { DockviewReact, DockviewReadyEvent, IDockviewPanelProps, IDockviewPanelHeaderProps, themeDark, themeLight } from "dockview";
 import "dockview/dist/styles/dockview.css";
 import MarkdownEditor from "./markdown-editor";
-
+import { SettingsContext, useSettings, DEFAULT_SETTINGS, type EditorSettings } from "./settings-context";
+import SettingsButton from "./settings-button";
+import { RightControls } from "./controls";
+import { toast } from "./toast";
+import { DEFAULT_MEMOS, DEFAULT_TITLES, STORAGE_KEYS } from "./default";
+import { memoDB } from "./library/indexDB";
+import { useVisualToggleStore } from "./visual-toggle-store";
+import { debounce } from "es-toolkit";
 
 // ── Helper: extract plain text from tiptap JSON ──
 function extractTextFromJSON(node: any): string {
@@ -40,15 +47,6 @@ export const MemoContext = createContext<{
 });
 
 export const useMemoStore = () => useContext(MemoContext);
-
-import { SettingsContext, useSettings, DEFAULT_SETTINGS, type EditorSettings } from "./settings-context";
-import SettingsButton from "./settings-button";
-import { RightControls } from "./controls";
-import { toast } from "./toast";
-import { DEFAULT_MEMOS, DEFAULT_TITLES, STORAGE_KEYS } from "./default";
-import { memoDB } from "./library/indexDB";
-import { useVisualToggleStore } from "./visual-toggle-store";
-import { debounce } from "es-toolkit";
 
 // ── Custom Tab Component ──
 function CustomTab(props: IDockviewPanelHeaderProps) {
@@ -159,26 +157,30 @@ export default function DockviewMemo() {
   const [isMounted, setIsMounted] = useState(false);
   const [settings, setSettings] = useState<EditorSettings>(DEFAULT_SETTINGS);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success">("idle");
+  const [progressWidth, setProgressWidth] = useState("0%");
   const apiRef = useRef<DockviewReadyEvent["api"] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const skipPersistRef = useRef(false);
   const statusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
+  const lastSaveTimeRef = useRef<number>(Date.now());
+  const lastInputTimeRef = useRef<number>(0);
+  const versionRef = useRef<number>(0);
+  const lastSavedVersionRef = useRef<number>(0);
   const STORAGE_KEY = "my-secret-key";
 
   // Use a ref to always have access to the latest state in debounced functions
   const stateRef = useRef({ memos, titles, settings, isDarkMode });
-  useEffect(() => {
-    stateRef.current = { memos, titles, settings, isDarkMode };
-  }, [memos, titles, settings, isDarkMode]);
+  // Update the ref in every render to ensure it's always current
+  stateRef.current = { memos, titles, settings, isDarkMode };
 
   // Centralized persistence function
   const persistState = useCallback(async (overrides?: {
-    memos?: Record<string, string>;
+    memos?: Record<string, any>;
     titles?: Record<string, string>;
     settings?: EditorSettings;
     isDarkMode?: boolean;
     layout?: any;
+    silent?: boolean;
   }) => {
     if (!isMounted || skipPersistRef.current) return;
 
@@ -197,14 +199,25 @@ export default function DockviewMemo() {
       visualToggles: useVisualToggleStore.getState().toolbarVisibility,
     };
 
+    const saveVersion = versionRef.current;
+
     try {
       await memoDB.setItem(STORAGE_KEY, currentState);
-      setSaveStatus("success");
+      lastSaveTimeRef.current = Date.now();
+      lastSavedVersionRef.current = Math.max(lastSavedVersionRef.current, saveVersion);
+
+      const timeSinceLastInput = Date.now() - lastInputTimeRef.current;
       
-      if (statusTimeoutRef.current) clearTimeout(statusTimeoutRef.current);
-      statusTimeoutRef.current = setTimeout(() => {
-        setSaveStatus("idle");
-      }, 2000);
+      // Only show success if:
+      // 1. Not a silent save (e.g. periodic background save)
+      // 2. We are fully caught up with the user's latest input
+      if (!overrides?.silent && versionRef.current === lastSavedVersionRef.current) {
+        setSaveStatus("success");
+        if (statusTimeoutRef.current) clearTimeout(statusTimeoutRef.current);
+        statusTimeoutRef.current = setTimeout(() => {
+          setSaveStatus(prev => prev === "success" ? "idle" : prev);
+        }, 2000);
+      }
     } catch (e) {
       setSaveStatus("idle");
       toast.error("데이터 저장에 실패했습니다.");
@@ -212,12 +225,16 @@ export default function DockviewMemo() {
     }
   }, [isMounted]);
 
+  // Stabilize persistState with a ref so the debounce function doesn't need to change
+  const persistStateRef = useRef(persistState);
+  persistStateRef.current = persistState;
+
   // Debounced version for frequent updates (like memo content)
-  const debouncedPersist = useRef(
+  const debouncedPersist = useMemo(() => 
     debounce((overrides?: any) => {
-      persistState(overrides);
+      persistStateRef.current(overrides);
     }, 1000)
-  ).current;
+  , []);
 
   // Initial load
   useEffect(() => {
@@ -287,48 +304,72 @@ export default function DockviewMemo() {
   }, [isDarkMode, isMounted]);
 
   const updateMemo = useCallback((id: string, val: any, immediate = false) => {
-    setSaveStatus("saving");
-    setMemos(prev => {
-      const next = { ...prev, [id]: val };
-      if (immediate) {
-        persistState({ memos: next });
-      } else {
-        debouncedPersist({ memos: next });
-      }
-      return next;
-    });
+    versionRef.current++;
+    lastInputTimeRef.current = Date.now();
+    setSaveStatus(prev => prev !== "saving" ? "saving" : prev);
+    
+    // Calculate the next memos object immediately to use for persistence
+    const nextMemos = { ...stateRef.current.memos, [id]: val };
+    
+    // Update state for UI
+    setMemos(nextMemos);
+    
+    // Persistence logic (now safely outside of the setState updater)
+    const now = Date.now();
+    if (immediate || (now - lastSaveTimeRef.current >= 15000)) {
+      debouncedPersist.cancel();
+      persistState({ memos: nextMemos, silent: !immediate });
+    } else {
+      debouncedPersist({ memos: nextMemos });
+    }
   }, [debouncedPersist, persistState]);
 
   const updateTitle = useCallback((id: string, title: string) => {
-    setSaveStatus("saving");
-    setTitles(prev => {
-      const next = { ...prev, [id]: title };
-      persistState({ titles: next });
-      return next;
-    });
+    versionRef.current++;
+    lastInputTimeRef.current = Date.now();
+    setSaveStatus(prev => prev !== "saving" ? "saving" : prev);
+    
+    const nextTitles = { ...stateRef.current.titles, [id]: title };
+    setTitles(nextTitles);
+    persistState({ titles: nextTitles });
   }, [persistState]);
 
   const updateSettings = useCallback((newSettings: Partial<EditorSettings>) => {
-    setSettings(prev => {
-      const next = { ...prev, ...newSettings };
-      persistState({ settings: next });
-      return next;
-    });
+    versionRef.current++;
+    lastInputTimeRef.current = Date.now();
+    setSaveStatus(prev => prev !== "saving" ? "saving" : prev);
+    
+    const nextSettings = { ...stateRef.current.settings, ...newSettings };
+    setSettings(nextSettings);
+    persistState({ settings: nextSettings });
   }, [persistState]);
 
+  // Centralized Save Progress Animation without rapid re-renders
+  useEffect(() => {
+    if (saveStatus === "saving") {
+      setProgressWidth("0%");
+      const t = setTimeout(() => setProgressWidth("95%"), 50);
+      return () => clearTimeout(t);
+    } else if (saveStatus === "success") {
+      setProgressWidth("100%");
+    } else {
+      const t = setTimeout(() => {
+        if (saveStatus === "idle") setProgressWidth("0%");
+      }, 2000);
+      return () => clearTimeout(t);
+    }
+  }, [saveStatus]);
+
   const removeMemo = useCallback((id: string) => {
-    setMemos(prev => {
-      const next = { ...prev };
-      delete next[id];
-      // Note: titles will be cleaned up in the setTitles call below
-      return next;
-    });
-    setTitles(prev => {
-      const next = { ...prev };
-      delete next[id];
-      persistState({ titles: next });
-      return next;
-    });
+    const nextMemos = { ...stateRef.current.memos };
+    delete nextMemos[id];
+    setMemos(nextMemos);
+
+    const nextTitles = { ...stateRef.current.titles };
+    delete nextTitles[id];
+    setTitles(nextTitles);
+    
+    persistState({ titles: nextTitles, memos: nextMemos });
   }, [persistState]);
 
   const resetData = useCallback(() => {
@@ -564,8 +605,21 @@ export default function DockviewMemo() {
                 <div className="flex items-center gap-2 text-slate-500 text-[10px] font-medium uppercase tracking-widest transition-all duration-300">
                   {saveStatus === "saving" ? (
                     <>
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-bounce" />
-                      <span className="text-amber-500/80 font-bold">Saving...</span>
+                      <div className="flex items-center gap-1.5 min-w-[80px]">
+                        <div className="relative w-2 h-2">
+                          <span className="absolute inset-0 rounded-full bg-amber-500 animate-ping opacity-20" />
+                          <span className="relative block w-2 h-2 rounded-full bg-amber-500" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-amber-500/80 font-bold text-[9px] leading-none">SAVING...</span>
+                          <div className="w-full h-1 bg-amber-500/10 rounded-full mt-0.5 overflow-hidden">
+                            <div 
+                              className="h-full bg-amber-500 transition-all ease-out duration-[2000ms]" 
+                              style={{ width: progressWidth }}
+                            />
+                          </div>
+                        </div>
+                      </div>
                     </>
                   ) : saveStatus === "success" ? (
                     <>

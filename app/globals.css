@@ -29,6 +29,7 @@
   --dv-tab-text: #64748b;
   --dv-active-tab-text: #0ea5e9;
   --dv-separator: #f1f5f9;
+  --hr-color: #000000;
 }
 
 .dark {
@@ -48,6 +49,7 @@
   --dv-tab-text: #475569;
   --dv-active-tab-text: #38bdf8;
   --dv-separator: #1e293b;
+  --hr-color: #ffffff;
 }
 
 body {
@@ -73,6 +75,7 @@ body {
 .prose pre code { @apply bg-transparent p-0 text-slate-700 dark:text-slate-300; }
 .prose blockquote { @apply border-l-4 border-slate-200 dark:border-slate-700 pl-4 italic opacity-80 mb-4; }
 .prose a { @apply text-cyan-600 dark:text-cyan-500 underline hover:opacity-80 transition-colors; }
+.prose hr { @apply my-6; border: 0; border-top: 1px solid var(--hr-color); opacity: 1; }
 .prose table { @apply w-full border-collapse mb-4; }
 .prose th, .prose td { @apply border p-2 text-left; border-color: var(--border-color); }
 .prose th { background: rgba(0,0,0,0.03); }
