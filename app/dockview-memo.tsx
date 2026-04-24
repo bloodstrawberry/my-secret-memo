@@ -104,10 +104,24 @@ export default function DockviewMemo() {
         });
       });
     } else {
-      event.api.addPanel({
-        id: "default-memo",
+      const memo1 = event.api.addPanel({
+        id: "memo1",
         component: "editor",
-        title: "Welcome Memo",
+        title: "memo1",
+      });
+
+      const memo2 = event.api.addPanel({
+        id: "memo2",
+        component: "editor",
+        title: "memo2",
+        position: { referencePanel: memo1, direction: "right" },
+      });
+
+      event.api.addPanel({
+        id: "memo3",
+        component: "editor",
+        title: "memo3",
+        position: { referencePanel: memo2, direction: "below" },
       });
     }
   }, []);

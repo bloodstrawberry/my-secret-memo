@@ -1,18 +1,27 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Underline from "@tiptap/extension-underline";
-import TextAlign from "@tiptap/extension-text-align";
-import Link from "@tiptap/extension-link";
-import Placeholder from "@tiptap/extension-placeholder";
+import { StarterKit } from "@tiptap/starter-kit";
+import { Underline } from "@tiptap/extension-underline";
+import { TextAlign } from "@tiptap/extension-text-align";
+import { Link } from "@tiptap/extension-link";
+import { Placeholder } from "@tiptap/extension-placeholder";
+import { Table } from "@tiptap/extension-table";
+import { TableRow } from "@tiptap/extension-table-row";
+import { TableCell } from "@tiptap/extension-table-cell";
+import { TableHeader } from "@tiptap/extension-table-header";
+import { Color } from "@tiptap/extension-color";
+import { TextStyle } from "@tiptap/extension-text-style";
+import { Highlight } from "@tiptap/extension-highlight";
+import { TaskList } from "@tiptap/extension-task-list";
+import { TaskItem } from "@tiptap/extension-task-item";
 import { Icon } from "@iconify/react";
 import { Markdown } from "tiptap-markdown";
 import { marked } from "marked";
 
 // ── Configuration ──
-const ICON_SIZE = 18; // 아이콘 크기 (픽셀 단위)
+const ICON_SIZE = 18;
 
 interface MarkdownEditorProps {
   value: string;
@@ -22,6 +31,8 @@ interface MarkdownEditorProps {
 
 export default function MarkdownEditor({ value, onChange, placeholder }: MarkdownEditorProps) {
   const [isMounted, setIsMounted] = useState(false);
+  const colorInputRef = useRef<HTMLInputElement>(null);
+  const highlightInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setIsMounted(true);
@@ -38,8 +49,9 @@ export default function MarkdownEditor({ value, onChange, placeholder }: Markdow
           keepMarks: true,
           keepAttributes: false,
         },
-        // We disable the built-in code block because we might want to use something else 
-        // or just let Markdown extension handle it.
+        heading: {
+          levels: [1, 2, 3, 4, 5, 6],
+        },
       }),
       Markdown.configure({
         html: true,
@@ -59,10 +71,22 @@ export default function MarkdownEditor({ value, onChange, placeholder }: Markdow
       Placeholder.configure({
         placeholder: placeholder || "상세 내용을 입력하세요...",
       }),
+      TextStyle,
+      Color,
+      Highlight.configure({ multicolor: true }),
+      Table.configure({
+        resizable: true,
+      }),
+      TableRow,
+      TableHeader,
+      TableCell,
+      TaskList,
+      TaskItem.configure({
+        nested: true,
+      }),
     ],
     content: value ? (marked.parse(value) as string) : "",
     onUpdate: ({ editor }) => {
-      // Get markdown directly from the editor thanks to tiptap-markdown
       const markdown = (editor.storage as any).markdown.getMarkdown();
       onChange(markdown);
     },
@@ -99,121 +123,236 @@ export default function MarkdownEditor({ value, onChange, placeholder }: Markdow
     <div className="flex flex-col w-full h-full min-h-0 bg-[var(--panel-bg)]">
       <div className="flex-1 flex flex-col overflow-hidden transition-all duration-300">
         {/* Toolbar */}
-        <div className="flex flex-wrap items-center gap-1 p-2 border-b border-[var(--border-color)] bg-[var(--header-bg)] backdrop-blur-sm">
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleBold().run()}
-            active={editor.isActive("bold")}
-            icon="material-symbols:format-bold"
-            title="Bold"
-          />
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleItalic().run()}
-            active={editor.isActive("italic")}
-            icon="material-symbols:format-italic"
-            title="Italic"
-          />
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleUnderline().run()}
-            active={editor.isActive("underline")}
-            icon="material-symbols:format-underlined"
-            title="Underline"
-          />
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleStrike().run()}
-            active={editor.isActive("strike")}
-            icon="material-symbols:strikethrough-s"
-            title="Strikethrough"
-          />
+        <div className="flex flex-wrap items-center gap-1 p-2 border-b border-[var(--border-color)] bg-[var(--header-bg)] backdrop-blur-sm sticky top-0 z-10">
+          {/* Headings */}
+          <div className="flex items-center gap-1">
+            {[1, 2, 3, 4, 5, 6].map((level) => (
+              <ToolbarButton
+                key={level}
+                onClick={() => editor.chain().focus().toggleHeading({ level: level as any }).run()}
+                active={editor.isActive("heading", { level })}
+                icon={`material-symbols:format-h${level}`}
+                title={`Heading ${level}`}
+              />
+            ))}
+          </div>
 
           <ToolbarDivider />
 
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleBulletList().run()}
-            active={editor.isActive("bulletList")}
-            icon="material-symbols:format-list-bulleted"
-            title="Bullet List"
-          />
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleOrderedList().run()}
-            active={editor.isActive("orderedList")}
-            icon="material-symbols:format-list-numbered"
-            title="Numbered List"
-          />
+          {/* Basic Formatting */}
+          <div className="flex items-center gap-1">
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleBold().run()}
+              active={editor.isActive("bold")}
+              icon="material-symbols:format-bold"
+              title="Bold"
+            />
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleItalic().run()}
+              active={editor.isActive("italic")}
+              icon="material-symbols:format-italic"
+              title="Italic"
+            />
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleUnderline().run()}
+              active={editor.isActive("underline")}
+              icon="material-symbols:format-underlined"
+              title="Underline"
+            />
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleStrike().run()}
+              active={editor.isActive("strike")}
+              icon="material-symbols:strikethrough-s"
+              title="Strikethrough"
+            />
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleCode().run()}
+              active={editor.isActive("code")}
+              icon="material-symbols:code"
+              title="Code Inline"
+            />
+          </div>
 
           <ToolbarDivider />
 
-          <ToolbarButton
-            onClick={() => editor.chain().focus().setTextAlign("left").run()}
-            active={editor.isActive({ textAlign: "left" })}
-            icon="material-symbols:format-align-left"
-            title="Align Left"
-          />
-          <ToolbarButton
-            onClick={() => editor.chain().focus().setTextAlign("center").run()}
-            active={editor.isActive({ textAlign: "center" })}
-            icon="material-symbols:format-align-center"
-            title="Align Center"
-          />
-          <ToolbarButton
-            onClick={() => editor.chain().focus().setTextAlign("right").run()}
-            active={editor.isActive({ textAlign: "right" })}
-            icon="material-symbols:format-align-right"
-            title="Align Right"
-          />
+          {/* Color & Highlight */}
+          <div className="flex items-center gap-1">
+            <div className="relative group">
+              <ToolbarButton
+                onClick={() => colorInputRef.current?.click()}
+                active={editor.isActive("textStyle", { color: editor.getAttributes("textStyle").color })}
+                icon="material-symbols:format-color-text"
+                title="Text Color"
+              />
+              <input
+                ref={colorInputRef}
+                type="color"
+                className="invisible absolute w-0 h-0"
+                onInput={(event) => {
+                  editor.chain().focus().setColor((event.target as HTMLInputElement).value).run();
+                }}
+              />
+            </div>
+            <div className="relative group">
+              <ToolbarButton
+                onClick={() => highlightInputRef.current?.click()}
+                active={editor.isActive("highlight")}
+                icon="material-symbols:format-ink-highlighter"
+                title="Highlight"
+              />
+              <input
+                ref={highlightInputRef}
+                type="color"
+                className="invisible absolute w-0 h-0"
+                onInput={(event) => {
+                  editor.chain().focus().toggleHighlight({ color: (event.target as HTMLInputElement).value }).run();
+                }}
+              />
+            </div>
+            <ToolbarButton
+              onClick={() => editor.chain().focus().unsetColor().unsetHighlight().run()}
+              icon="material-symbols:format-color-reset"
+              title="Reset Color"
+            />
+          </div>
 
           <ToolbarDivider />
 
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleBlockquote().run()}
-            active={editor.isActive("blockquote")}
-            icon="material-symbols:format-quote"
-            title="Quote"
-          />
-          <ToolbarButton
-            onClick={() => editor.chain().focus().setHorizontalRule().run()}
-            icon="material-symbols:horizontal-rule"
-            title="Horizontal Rule"
-          />
-          <ToolbarButton
-            onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}
-            icon="material-symbols:format-clear"
-            title="Clear Formatting"
-          />
+          {/* Lists */}
+          <div className="flex items-center gap-1">
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleBulletList().run()}
+              active={editor.isActive("bulletList")}
+              icon="material-symbols:format-list-bulleted"
+              title="Bullet List"
+            />
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleOrderedList().run()}
+              active={editor.isActive("orderedList")}
+              icon="material-symbols:format-list-numbered"
+              title="Numbered List"
+            />
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleTaskList().run()}
+              active={editor.isActive("taskList")}
+              icon="material-symbols:checklist"
+              title="Task List"
+            />
+          </div>
 
           <ToolbarDivider />
 
-          <ToolbarButton
-            onClick={addLink}
-            active={editor.isActive("link")}
-            icon="material-symbols:link"
-            title="Link"
-          />
-          <ToolbarButton
-            onClick={() => editor.chain().focus().unsetLink().run()}
-            disabled={!editor.isActive("link")}
-            icon="material-symbols:link-off"
-            title="Unlink"
-          />
+          {/* Alignment */}
+          <div className="flex items-center gap-1">
+            <ToolbarButton
+              onClick={() => editor.chain().focus().setTextAlign("left").run()}
+              active={editor.isActive({ textAlign: "left" })}
+              icon="material-symbols:format-align-left"
+              title="Align Left"
+            />
+            <ToolbarButton
+              onClick={() => editor.chain().focus().setTextAlign("center").run()}
+              active={editor.isActive({ textAlign: "center" })}
+              icon="material-symbols:format-align-center"
+              title="Align Center"
+            />
+            <ToolbarButton
+              onClick={() => editor.chain().focus().setTextAlign("right").run()}
+              active={editor.isActive({ textAlign: "right" })}
+              icon="material-symbols:format-align-right"
+              title="Align Right"
+            />
+          </div>
 
           <ToolbarDivider />
 
-          <ToolbarButton
-            onClick={() => editor.chain().focus().undo().run()}
-            disabled={!editor.can().undo()}
-            icon="material-symbols:undo"
-            title="Undo"
-          />
-          <ToolbarButton
-            onClick={() => editor.chain().focus().redo().run()}
-            disabled={!editor.can().redo()}
-            icon="material-symbols:redo"
-            title="Redo"
-          />
+          {/* Table Controls */}
+          <div className="flex items-center gap-1">
+            <ToolbarButton
+              onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
+              icon="material-symbols:table-chart"
+              title="Insert Table"
+            />
+            {editor.isActive("table") && (
+              <>
+                <ToolbarButton
+                  onClick={() => editor.chain().focus().addColumnBefore().run()}
+                  icon="material-symbols:add-column-before"
+                  title="Add Column Before"
+                />
+                <ToolbarButton
+                  onClick={() => editor.chain().focus().addColumnAfter().run()}
+                  icon="material-symbols:add-column-after"
+                  title="Add Column After"
+                />
+                <ToolbarButton
+                  onClick={() => editor.chain().focus().deleteColumn().run()}
+                  icon="material-symbols:delete-column"
+                  title="Delete Column"
+                />
+                <ToolbarButton
+                  onClick={() => editor.chain().focus().addRowBefore().run()}
+                  icon="material-symbols:add-row-before"
+                  title="Add Row Before"
+                />
+                <ToolbarButton
+                  onClick={() => editor.chain().focus().addRowAfter().run()}
+                  icon="material-symbols:add-row-after"
+                  title="Add Row After"
+                />
+                <ToolbarButton
+                  onClick={() => editor.chain().focus().deleteRow().run()}
+                  icon="material-symbols:delete-row"
+                  title="Delete Row"
+                />
+                <ToolbarButton
+                  onClick={() => editor.chain().focus().deleteTable().run()}
+                  icon="material-symbols:table-rows-narrow"
+                  title="Delete Table"
+                />
+              </>
+            )}
+          </div>
+
+          <ToolbarDivider />
+
+          {/* Misc */}
+          <div className="flex items-center gap-1">
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleBlockquote().run()}
+              active={editor.isActive("blockquote")}
+              icon="material-symbols:format-quote"
+              title="Quote"
+            />
+            <ToolbarButton
+              onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+              active={editor.isActive("codeBlock")}
+              icon="material-symbols:terminal"
+              title="Code Block"
+            />
+            <ToolbarButton
+              onClick={() => editor.chain().focus().setHorizontalRule().run()}
+              icon="material-symbols:horizontal-rule"
+              title="Horizontal Rule"
+            />
+            <ToolbarButton
+              onClick={addLink}
+              active={editor.isActive("link")}
+              icon="material-symbols:link"
+              title="Link"
+            />
+            <ToolbarButton
+              onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}
+              icon="material-symbols:format-clear"
+              title="Clear Formatting"
+            />
+          </div>
+
         </div>
 
         {/* Editor Area */}
         <div
-          className="flex-1 overflow-auto custom-scrollbar cursor-text"
+          className="flex-1 overflow-auto custom-scrollbar cursor-text bg-[var(--panel-bg)]"
           onClick={() => editor.chain().focus().run()}
         >
           <EditorContent editor={editor} className="h-full" />
@@ -238,7 +377,11 @@ function ToolbarButton({
 }) {
   return (
     <button
-      onClick={onClick}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onClick();
+      }}
       disabled={disabled}
       title={title}
       className={`
@@ -255,5 +398,5 @@ function ToolbarButton({
 }
 
 function ToolbarDivider() {
-  return <div className="mx-1 h-6 w-px bg-[var(--border-color)]" />;
+  return <div className="mx-1 h-6 w-px bg-[var(--border-color)] self-center opacity-30" />;
 }
