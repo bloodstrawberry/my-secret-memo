@@ -73,14 +73,6 @@ body {
 
 /* Dockview Theme Customization */
 .dockview-theme-memo {
-  --dv-background-color: var(--dv-bg);
-  --dv-group-view-background-color: var(--dv-group-bg);
-  --dv-tabs-and-actions-container-background-color: var(--dv-group-bg);
-  --dv-active-tab-background-color: var(--dv-active-tab-bg);
-  --dv-inactive-tab-background-color: var(--dv-group-bg);
-  --dv-tab-text-color: var(--dv-tab-text);
-  --dv-active-tab-text-color: var(--dv-active-tab-text);
-  --dv-separator-color: var(--dv-separator);
   --dv-drag-over-background-color: rgba(56, 189, 248, 0.05);
   --dv-group-view-border-color: var(--dv-separator);
 }
