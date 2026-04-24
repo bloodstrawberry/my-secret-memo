@@ -19,7 +19,7 @@ import { TaskItem } from "@tiptap/extension-task-item";
 import { Icon } from "@iconify/react";
 import { Markdown } from "tiptap-markdown";
 import { marked } from "marked";
-import { useSettings } from "./dockview-memo";
+import { useSettings } from "./settings-context";
 
 // ── Configuration ──
 const ICON_SIZE = 18;

@@ -2,8 +2,6 @@
 
 import { useState, useEffect, createContext, useContext, useCallback, useRef } from "react";
 import { DockviewReact, DockviewReadyEvent, IDockviewPanelProps, IDockviewPanelHeaderProps, themeDark, themeLight } from "dockview";
-import { motion, AnimatePresence } from "framer-motion";
-import { Icon } from "@iconify/react";
 import "dockview/dist/styles/dockview.css";
 import MarkdownEditor from "./markdown-editor";
 
@@ -20,30 +18,8 @@ const MemoContext = createContext<{
   updateTitle: () => { }
 });
 
-// ── Context for Global Settings ──
-interface EditorSettings {
-  lineHeight: string;
-  letterSpacing: string;
-  fontSize: string;
-  fontFamily: string;
-  maxWidth: string;
-}
-
-const SettingsContext = createContext<{
-  settings: EditorSettings;
-  updateSettings: (newSettings: Partial<EditorSettings>) => void;
-}>({
-  settings: {
-    lineHeight: "1.6",
-    letterSpacing: "0px",
-    fontSize: "16px",
-    fontFamily: "inherit",
-    maxWidth: "100%",
-  },
-  updateSettings: () => { },
-});
-
-export const useSettings = () => useContext(SettingsContext);
+import { SettingsContext, useSettings, DEFAULT_SETTINGS, type EditorSettings } from "./settings-context";
+import SettingsButton from "./settings-button";
 
 // ── Custom Tab Component ──
 function CustomTab(props: IDockviewPanelHeaderProps) {
@@ -143,147 +119,6 @@ const TAB_COMPONENTS: Record<string, React.FunctionComponent<IDockviewPanelHeade
   default: CustomTab,
 };
 
-// ── Settings Popover Component ──
-function SettingsPopover({
-  settings,
-  updateSettings,
-  onClose
-}: {
-  settings: EditorSettings;
-  updateSettings: (newSettings: Partial<EditorSettings>) => void;
-  onClose: () => void;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 10, scale: 0.95 }}
-      className="absolute top-full left-0 mt-2 w-72 bg-[var(--panel-bg)] border border-[var(--border-color)] rounded-2xl shadow-2xl z-50 p-5 backdrop-blur-xl"
-    >
-      <div className="flex flex-col gap-5">
-        <div className="flex justify-between items-center">
-          <h3 className="text-sm font-bold text-[var(--foreground)] uppercase tracking-widest opacity-80">Editor Settings</h3>
-          <button onClick={onClose} className="p-1 hover:bg-slate-500/10 rounded-full transition-colors">
-            <Icon icon="material-symbols:close" className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          {/* Font Size */}
-          <div className="space-y-1.5">
-            <div className="flex justify-between text-[10px] font-bold uppercase tracking-tighter opacity-60">
-              <span>Font Size</span>
-              <span>{settings.fontSize}</span>
-            </div>
-            <input
-              type="range"
-              min="12"
-              max="24"
-              step="1"
-              value={parseInt(settings.fontSize)}
-              onChange={(e) => updateSettings({ fontSize: `${e.target.value}px` })}
-              className="w-full h-1.5 bg-cyan-500/10 rounded-lg appearance-none cursor-pointer accent-cyan-500"
-            />
-          </div>
-
-          {/* Line Height */}
-          <div className="space-y-1.5">
-            <div className="flex justify-between text-[10px] font-bold uppercase tracking-tighter opacity-60">
-              <span>Line Height</span>
-              <span>{settings.lineHeight}</span>
-            </div>
-            <input
-              type="range"
-              min="1"
-              max="2.5"
-              step="0.1"
-              value={parseFloat(settings.lineHeight)}
-              onChange={(e) => updateSettings({ lineHeight: e.target.value })}
-              className="w-full h-1.5 bg-cyan-500/10 rounded-lg appearance-none cursor-pointer accent-cyan-500"
-            />
-          </div>
-
-          {/* Letter Spacing */}
-          <div className="space-y-1.5">
-            <div className="flex justify-between text-[10px] font-bold uppercase tracking-tighter opacity-60">
-              <span>Letter Spacing</span>
-              <span>{settings.letterSpacing}</span>
-            </div>
-            <input
-              type="range"
-              min="-1"
-              max="5"
-              step="0.5"
-              value={parseFloat(settings.letterSpacing)}
-              onChange={(e) => updateSettings({ letterSpacing: `${e.target.value}px` })}
-              className="w-full h-1.5 bg-cyan-500/10 rounded-lg appearance-none cursor-pointer accent-cyan-500"
-            />
-          </div>
-
-          {/* Max Width */}
-          <div className="space-y-1.5">
-            <div className="flex justify-between text-[10px] font-bold uppercase tracking-tighter opacity-60">
-              <span>Max Width</span>
-              <span>{settings.maxWidth === "100%" ? "Full" : settings.maxWidth}</span>
-            </div>
-            <div className="flex gap-2">
-              {["600px", "800px", "1000px", "100%"].map((w) => (
-                <button
-                  key={w}
-                  onClick={() => updateSettings({ maxWidth: w })}
-                  className={`flex-1 py-1 rounded text-[10px] font-bold border transition-all ${settings.maxWidth === w
-                    ? "bg-cyan-500 border-cyan-500 text-white"
-                    : "border-[var(--border-color)] hover:bg-slate-500/5 text-[var(--foreground)]"
-                    }`}
-                >
-                  {w === "100%" ? "Full" : w}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Font Family */}
-          <div className="space-y-1.5">
-            <div className="text-[10px] font-bold uppercase tracking-tighter opacity-60">Font Family</div>
-            <select
-              value={settings.fontFamily}
-              onChange={(e) => updateSettings({ fontFamily: e.target.value })}
-              className="w-full bg-transparent border border-[var(--border-color)] rounded-lg p-2 text-xs text-[var(--foreground)] outline-none focus:ring-1 focus:ring-cyan-500/30"
-            >
-              <option value="inherit">Default (Sans)</option>
-              <option value="'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif">Pretendard</option>
-              <option value="var(--font-montserrat), sans-serif">Montserrat</option>
-              <option value="var(--font-roboto), sans-serif">Roboto</option>
-              <option value="var(--font-open-sans), sans-serif">Open Sans</option>
-              <option value="'Noto Sans KR', sans-serif">Noto Sans KR</option>
-              <option value="'Inter', sans-serif">Inter</option>
-              <option value="'전소민체', sans-serif">전소민체 (Jeon So-min)</option>
-              <option value="var(--font-lora), serif">Lora (Serif)</option>
-              <option value="'Consolas', 'Monaco', monospace">Consolas (Mono)</option>
-              <option value="var(--font-jetbrains-mono), monospace">JetBrains Mono</option>
-              <option value="Georgia, serif">Georgia (Serif)</option>
-            </select>
-          </div>
-        </div>
-
-        <button
-          onClick={() => {
-            updateSettings({
-              lineHeight: "1.6",
-              letterSpacing: "0px",
-              fontSize: "16px",
-              fontFamily: "inherit",
-              maxWidth: "100%",
-            });
-          }}
-          className="text-[10px] font-bold text-cyan-500 uppercase tracking-widest hover:underline text-center"
-        >
-          Reset to defaults
-        </button>
-      </div>
-    </motion.div>
-  );
-}
 
 // ── Main Component ──
 export default function DockviewMemo() {
@@ -291,14 +126,7 @@ export default function DockviewMemo() {
   const [titles, setTitles] = useState<Record<string, string>>({});
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [settings, setSettings] = useState<EditorSettings>({
-    lineHeight: "1.6",
-    letterSpacing: "0px",
-    fontSize: "16px",
-    fontFamily: "inherit",
-    maxWidth: "100%",
-  });
+  const [settings, setSettings] = useState<EditorSettings>(DEFAULT_SETTINGS);
   const apiRef = useRef<DockviewReadyEvent["api"] | null>(null);
 
   // Initial load
@@ -470,24 +298,7 @@ export default function DockviewMemo() {
                   MEMO ORGANIZER
                   <span className="px-1.5 py-0.5 rounded text-[10px] bg-cyan-500/10 text-cyan-500 border border-cyan-500/20 font-mono font-medium">PRO</span>
 
-                  <div className="relative">
-                    <button
-                      onClick={() => setShowSettings(!showSettings)}
-                      className={`p-1.5 rounded-lg transition-all ${showSettings ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20" : "hover:bg-slate-500/10 text-[var(--foreground)] opacity-40 hover:opacity-100"}`}
-                    >
-                      <Icon icon="material-symbols:settings-outline" className={`w-5 h-5 ${showSettings ? "animate-spin-slow" : ""}`} />
-                    </button>
-
-                    <AnimatePresence>
-                      {showSettings && (
-                        <SettingsPopover
-                          settings={settings}
-                          updateSettings={updateSettings}
-                          onClose={() => setShowSettings(false)}
-                        />
-                      )}
-                    </AnimatePresence>
-                  </div>
+                  <SettingsButton />
                 </h1>
                 <div className="flex items-center gap-2 text-slate-500 text-[10px] font-medium uppercase tracking-widest">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
