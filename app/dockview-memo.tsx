@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, createContext, useContext, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, createContext, useContext, useCallback, useRef, useMemo, memo } from "react";
 import { DockviewReact, DockviewReadyEvent, IDockviewPanelProps, IDockviewPanelHeaderProps, themeDark, themeLight } from "dockview";
 import "dockview/dist/styles/dockview.css";
 import MarkdownEditor from "./markdown-editor";
@@ -49,7 +49,7 @@ export const MemoContext = createContext<{
 export const useMemoStore = () => useContext(MemoContext);
 
 // ── Custom Tab Component ──
-function CustomTab(props: IDockviewPanelHeaderProps) {
+const CustomTab = memo(function CustomTab(props: IDockviewPanelHeaderProps) {
   const { updateTitle } = useContext(MemoContext);
   const [isEditing, setIsEditing] = useState(false);
   const [tempTitle, setTempTitle] = useState(props.api.title || "");
@@ -120,10 +120,10 @@ function CustomTab(props: IDockviewPanelHeaderProps) {
       </button>
     </div>
   );
-}
+});
 
 // ── Panel Components ──
-function EditorPanel(props: IDockviewPanelProps) {
+const EditorPanel = memo(function EditorPanel(props: IDockviewPanelProps) {
   const { memos, updateMemo } = useContext(MemoContext);
   const memo = memos[props.api.id] || "";
 
@@ -138,7 +138,7 @@ function EditorPanel(props: IDockviewPanelProps) {
       />
     </div>
   );
-}
+});
 
 const COMPONENTS: Record<string, React.FunctionComponent<IDockviewPanelProps>> = {
   editor: EditorPanel,
@@ -507,58 +507,48 @@ export default function DockviewMemo() {
             console.error("Failed to load legacy layout", e);
           }
         } else {
-          // Default Layout
-          // Use fromJSON for initial layout setup to avoid race conditions with sequential addPanel calls
-          setTimeout(() => {
+          // Default Layout — use chained addPanel with requestAnimationFrame
+          // to ensure each panel's DOM is fully mounted before positioning the next
+          requestAnimationFrame(() => {
             try {
-              event.api.fromJSON({
-                grid: {
-                  root: {
-                    type: "branch",
-                    orientation: "HORIZONTAL",
-                    data: [
-                      {
-                        type: "leaf",
-                        size: 50,
-                        data: { views: ["memo1"] },
-                      },
-                      {
-                        type: "branch",
-                        size: 50,
-                        orientation: "VERTICAL",
-                        data: [
-                          {
-                            type: "leaf",
-                            size: 50,
-                            data: { views: ["memo2"] },
-                          },
-                          {
-                            type: "leaf",
-                            size: 50,
-                            data: { views: ["memo3"] },
-                          },
-                        ],
-                      },
-                    ],
-                  },
-                },
-                panels: {
-                  memo1: { id: "memo1", component: "editor", title: savedTitlesMap["memo1"] || DEFAULT_TITLES["memo1"], tabComponent: "default" },
-                  memo2: { id: "memo2", component: "editor", title: savedTitlesMap["memo2"] || DEFAULT_TITLES["memo2"], tabComponent: "default" },
-                  memo3: { id: "memo3", component: "editor", title: savedTitlesMap["memo3"] || DEFAULT_TITLES["memo3"], tabComponent: "default" },
-                },
-              } as any);
+              event.api.addPanel({
+                id: "memo1",
+                component: "editor",
+                title: DEFAULT_TITLES["memo1"],
+                tabComponent: "default",
+              });
 
-              // Ensure tab components are set correctly if not included in fromJSON params
-              event.api.panels.forEach(panel => {
-                // Since fromJSON might not set custom tab components correctly in all versions, 
-                // we ensure they are set if needed.
-                // Note: dockview 5.x supports tabComponent in fromJSON but just in case.
+              requestAnimationFrame(() => {
+                try {
+                  event.api.addPanel({
+                    id: "memo2",
+                    component: "editor",
+                    title: DEFAULT_TITLES["memo2"],
+                    tabComponent: "default",
+                    position: { referencePanel: "memo1", direction: "right" },
+                  });
+
+                  requestAnimationFrame(() => {
+                    try {
+                      event.api.addPanel({
+                        id: "memo3",
+                        component: "editor",
+                        title: DEFAULT_TITLES["memo3"],
+                        tabComponent: "default",
+                        position: { referencePanel: "memo2", direction: "below" },
+                      });
+                    } catch (e) {
+                      console.error("Failed to add memo3 panel", e);
+                    }
+                  });
+                } catch (e) {
+                  console.error("Failed to add memo2 panel", e);
+                }
               });
             } catch (e) {
-              console.error("Failed to create default layout via fromJSON", e);
+              console.error("Failed to add memo1 panel", e);
             }
-          }, 100);
+          });
         }
       }
     };
