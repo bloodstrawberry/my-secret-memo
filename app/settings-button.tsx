@@ -105,16 +105,15 @@ export function SettingsPopover({ onClose }: { onClose: () => void }) {
               onChange={(e) => updateSettings({ fontFamily: e.target.value })}
               className="w-full bg-transparent border border-[var(--border-color)] rounded-lg p-2 text-xs text-[var(--foreground)] outline-none focus:ring-1 focus:ring-cyan-500/30"
             >
-              <option value="inherit">Default (Sans)</option>
               <option value="'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif">Pretendard</option>
+              <option value="'Noto Sans KR', sans-serif">Noto Sans KR</option>
+              <option value="'JeonSoMin', sans-serif">전소민체</option>
+              <option value="'Consolas', 'Monaco', monospace">Consolas (Mono)</option>
+              <option value="var(--font-open-sans), sans-serif">Open Sans</option>
               <option value="var(--font-montserrat), sans-serif">Montserrat</option>
               <option value="var(--font-roboto), sans-serif">Roboto</option>
-              <option value="var(--font-open-sans), sans-serif">Open Sans</option>
-              <option value="'Noto Sans KR', sans-serif">Noto Sans KR</option>
               <option value="'Inter', sans-serif">Inter</option>
-              <option value="'전소민체', sans-serif">전소민체 (Jeon So-min)</option>
               <option value="var(--font-lora), serif">Lora (Serif)</option>
-              <option value="'Consolas', 'Monaco', monospace">Consolas (Mono)</option>
               <option value="var(--font-jetbrains-mono), monospace">JetBrains Mono</option>
               <option value="Georgia, serif">Georgia (Serif)</option>
             </select>

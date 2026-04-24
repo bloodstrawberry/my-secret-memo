@@ -14,7 +14,7 @@ export const DEFAULT_SETTINGS: EditorSettings = {
   lineHeight: "1.6",
   letterSpacing: "0px",
   fontSize: "16px",
-  fontFamily: "inherit",
+  fontFamily: "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
   maxWidth: "100%",
 };
 

@@ -1,7 +1,7 @@
 @import "tailwindcss";
 @font-face {
-  font-family: '전소민체';
-  src: url('/font/전소민체.ttf') format('truetype');
+  font-family: 'JeonSoMin';
+  src: url('/fonts/jeonsomin.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
 }

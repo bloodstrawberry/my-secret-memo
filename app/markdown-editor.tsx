@@ -95,7 +95,6 @@ export default function MarkdownEditor({ value, onChange, placeholder }: Markdow
     editorProps: {
       attributes: {
         class: "prose dark:prose-invert max-w-none focus:outline-none h-full p-8 text-[var(--foreground)] mx-auto",
-        style: `line-height: ${settings.lineHeight}; letter-spacing: ${settings.letterSpacing}; font-size: ${settings.fontSize}; font-family: ${settings.fontFamily}; max-width: ${settings.maxWidth}; transition: all 0.2s ease;`,
       },
     },
     immediatelyRender: false,
@@ -118,7 +117,6 @@ export default function MarkdownEditor({ value, onChange, placeholder }: Markdow
         editorProps: {
           attributes: {
             class: "prose dark:prose-invert max-w-none focus:outline-none h-full p-8 text-[var(--foreground)] mx-auto",
-            style: `line-height: ${settings.lineHeight}; letter-spacing: ${settings.letterSpacing}; font-size: ${settings.fontSize}; font-family: ${settings.fontFamily}; max-width: ${settings.maxWidth}; transition: all 0.2s ease;`,
           },
         },
       });
@@ -386,11 +384,29 @@ export default function MarkdownEditor({ value, onChange, placeholder }: Markdow
 
         </div>
 
-        {/* Editor Area */}
+        {/* Editor Area with dynamic style injection for robust settings application */}
         <div
-          className="flex-1 overflow-auto custom-scrollbar cursor-text bg-[var(--panel-bg)]"
+          className="flex-1 overflow-auto custom-scrollbar cursor-text bg-[var(--panel-bg)] relative"
           onClick={() => editor.chain().focus().run()}
         >
+          <style dangerouslySetInnerHTML={{ __html: `
+            .tiptap.prose {
+              font-family: ${settings.fontFamily} !important;
+              font-size: ${settings.fontSize} !important;
+              line-height: ${settings.lineHeight} !important;
+              letter-spacing: ${settings.letterSpacing} !important;
+              max-width: ${settings.maxWidth} !important;
+              transition: none !important;
+            }
+            /* Ensure all children inherit the font-family */
+            .tiptap.prose * {
+              font-family: inherit !important;
+            }
+            /* Specific overrides for common prose elements if needed */
+            .tiptap.prose p, .tiptap.prose h1, .tiptap.prose h2, .tiptap.prose h3, .tiptap.prose li {
+              font-family: inherit !important;
+            }
+          ` }} />
           <EditorContent editor={editor} className="h-full" />
         </div>
       </div>
