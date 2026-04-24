@@ -12,6 +12,7 @@ import { DEFAULT_MEMOS, DEFAULT_TITLES, STORAGE_KEYS } from "./default";
 import { memoDB } from "./library/indexDB";
 import { useVisualToggleStore } from "./visual-toggle-store";
 import { debounce } from "es-toolkit";
+import CryptoJS from "crypto-js";
 
 // ── Helper: extract plain text from tiptap JSON ──
 function extractTextFromJSON(node: any): string {
@@ -28,6 +29,71 @@ function extractTextFromJSON(node: any): string {
   }
   return text;
 }
+
+const encryptMemosText = (memos: any, key: string) => {
+  const processNode = (node: any): any => {
+    if (!node) return node;
+    if (typeof node === "string") {
+      return CryptoJS.AES.encrypt(node, key).toString();
+    }
+    if (typeof node !== "object") return node;
+
+    const newNode = { ...node };
+    if (newNode.text && typeof newNode.text === "string") {
+      newNode.text = CryptoJS.AES.encrypt(newNode.text, key).toString();
+    }
+
+    if (Array.isArray(newNode.content)) {
+      newNode.content = newNode.content.map(processNode);
+    }
+    return newNode;
+  };
+
+  const result: any = {};
+  for (const id in memos) {
+    result[id] = processNode(memos[id]);
+  }
+  return result;
+};
+
+const decryptMemosText = (memos: any, key: string) => {
+  const processNode = (node: any): any => {
+    if (!node) return node;
+    if (typeof node === "string") {
+      try {
+        const bytes = CryptoJS.AES.decrypt(node, key);
+        if (bytes && typeof bytes.toString === "function") {
+          const dec = bytes.toString(CryptoJS.enc.Utf8);
+          return dec || node;
+        }
+      } catch(e) {}
+      return node;
+    }
+    if (typeof node !== "object") return node;
+
+    const newNode = { ...node };
+    if (newNode.text && typeof newNode.text === "string") {
+      try {
+        const bytes = CryptoJS.AES.decrypt(newNode.text, key);
+        if (bytes && typeof bytes.toString === "function") {
+          const dec = bytes.toString(CryptoJS.enc.Utf8);
+          if (dec) newNode.text = dec;
+        }
+      } catch(e) {}
+    }
+
+    if (Array.isArray(newNode.content)) {
+      newNode.content = newNode.content.map(processNode);
+    }
+    return newNode;
+  };
+
+  const result: any = {};
+  for (const id in memos) {
+    result[id] = processNode(memos[id]);
+  }
+  return result;
+};
 
 // ── Context for Multi-Memo Management ──
 export const MemoContext = createContext<{
@@ -85,14 +151,15 @@ const CustomTab = memo(function CustomTab(props: IDockviewPanelHeaderProps) {
     >
       <div className="relative flex items-center min-w-[20px] max-w-[150px]">
         {/* Ghost element to drive the width dynamically */}
-        <span className="invisible text-[10px] font-bold tracking-widest uppercase whitespace-pre px-0.5">
+        <span className="invisible font-bold tracking-widest uppercase whitespace-pre px-0.5" style={{ fontSize: 'var(--dv-tab-font-size)' }}>
           {tempTitle || " "}
         </span>
 
         {isEditing ? (
           <input
             autoFocus
-            className="absolute inset-y-0 left-0 bg-transparent text-[10px] font-bold tracking-widest uppercase outline-none border-none text-[var(--foreground)] p-0 m-0 w-full leading-none"
+            className="absolute inset-y-0 left-0 bg-transparent font-bold tracking-widest uppercase outline-none border-none text-[var(--foreground)] p-0 m-0 w-full leading-none"
+            style={{ fontSize: 'var(--dv-tab-font-size)' }}
             value={tempTitle}
             onChange={(e) => setTempTitle(e.target.value)}
             onBlur={saveTitle}
@@ -102,7 +169,7 @@ const CustomTab = memo(function CustomTab(props: IDockviewPanelHeaderProps) {
             onMouseDown={(e) => e.stopPropagation()}
           />
         ) : (
-          <span className="absolute inset-y-0 left-0 truncate w-full text-[10px] font-bold tracking-widest uppercase text-[var(--foreground)] opacity-70 group-hover:opacity-100 transition-opacity flex items-center">
+          <span className="absolute inset-y-0 left-0 truncate w-full font-bold tracking-widest uppercase text-[var(--foreground)] opacity-70 group-hover:opacity-100 transition-opacity flex items-center" style={{ fontSize: 'var(--dv-tab-font-size)' }}>
             {props.api.title}
           </span>
         )}
@@ -158,6 +225,7 @@ export default function DockviewMemo() {
   const [settings, setSettings] = useState<EditorSettings>(DEFAULT_SETTINGS);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success">("idle");
   const [progressWidth, setProgressWidth] = useState("0%");
+  const [isEncrypted, setIsEncrypted] = useState(false);
   const apiRef = useRef<DockviewReadyEvent["api"] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const skipPersistRef = useRef(false);
@@ -167,6 +235,11 @@ export default function DockviewMemo() {
   const versionRef = useRef<number>(0);
   const lastSavedVersionRef = useRef<number>(0);
   const STORAGE_KEY = "my-secret-key";
+
+  const isEncryptedRef = useRef(false);
+  useEffect(() => {
+    isEncryptedRef.current = isEncrypted;
+  }, [isEncrypted]);
 
   // Use a ref to always have access to the latest state in debounced functions
   const stateRef = useRef({ memos, titles, settings, isDarkMode });
@@ -184,8 +257,15 @@ export default function DockviewMemo() {
   }) => {
     if (!isMounted || skipPersistRef.current) return;
 
+    if (isEncryptedRef.current) {
+      if (versionRef.current === lastSavedVersionRef.current) {
+        setSaveStatus("idle");
+      }
+      return;
+    }
+
     const layout = overrides?.layout ?? apiRef.current?.toJSON();
-    
+
     // CRITICAL: Do not save if we don't have a layout yet, 
     // otherwise we'll overwrite the DB with empty data.
     if (!layout) return;
@@ -207,7 +287,7 @@ export default function DockviewMemo() {
       lastSavedVersionRef.current = Math.max(lastSavedVersionRef.current, saveVersion);
 
       const timeSinceLastInput = Date.now() - lastInputTimeRef.current;
-      
+
       // Only show success if:
       // 1. Not a silent save (e.g. periodic background save)
       // 2. We are fully caught up with the user's latest input
@@ -230,11 +310,11 @@ export default function DockviewMemo() {
   persistStateRef.current = persistState;
 
   // Debounced version for frequent updates (like memo content)
-  const debouncedPersist = useMemo(() => 
+  const debouncedPersist = useMemo(() =>
     debounce((overrides?: any) => {
       persistStateRef.current(overrides);
     }, 1000)
-  , []);
+    , []);
 
   // Initial load
   useEffect(() => {
@@ -242,8 +322,28 @@ export default function DockviewMemo() {
       const savedData = await memoDB.getItem<any>(STORAGE_KEY);
 
       if (savedData) {
-        if (savedData.memos) setMemos(savedData.memos);
-        if (savedData.titles) setTitles(savedData.titles);
+        if (savedData.isEncrypted) {
+          setIsEncrypted(true);
+          isEncryptedRef.current = true;
+          setMemos(DEFAULT_MEMOS);
+          setTitles(DEFAULT_TITLES);
+          stateRef.current = {
+            memos: DEFAULT_MEMOS,
+            titles: DEFAULT_TITLES,
+            settings: savedData.settings || DEFAULT_SETTINGS,
+            isDarkMode: savedData.theme === "dark"
+          };
+        } else {
+          if (savedData.memos) setMemos(savedData.memos);
+          if (savedData.titles) setTitles(savedData.titles);
+          stateRef.current = {
+            memos: savedData.memos || {},
+            titles: savedData.titles || {},
+            settings: savedData.settings || DEFAULT_SETTINGS,
+            isDarkMode: savedData.theme === "dark"
+          };
+        }
+
         if (savedData.settings) setSettings(savedData.settings);
         if (savedData.theme) {
           const dark = savedData.theme === "dark";
@@ -253,14 +353,6 @@ export default function DockviewMemo() {
         if (savedData.visualToggles) {
           useVisualToggleStore.setState({ toolbarVisibility: savedData.visualToggles });
         }
-        
-        // Sync ref immediately so subsequent persistState calls have data
-        stateRef.current = {
-          memos: savedData.memos || {},
-          titles: savedData.titles || {},
-          settings: savedData.settings || DEFAULT_SETTINGS,
-          isDarkMode: savedData.theme === "dark"
-        };
       } else {
         // Fallback to defaults or legacy localStorage
         const legacyMemos = localStorage.getItem(STORAGE_KEYS.MEMOS);
@@ -307,13 +399,13 @@ export default function DockviewMemo() {
     versionRef.current++;
     lastInputTimeRef.current = Date.now();
     setSaveStatus(prev => prev !== "saving" ? "saving" : prev);
-    
+
     // Calculate the next memos object immediately to use for persistence
     const nextMemos = { ...stateRef.current.memos, [id]: val };
-    
+
     // Update state for UI
     setMemos(nextMemos);
-    
+
     // Persistence logic (now safely outside of the setState updater)
     const now = Date.now();
     if (immediate || (now - lastSaveTimeRef.current >= 15000)) {
@@ -328,7 +420,7 @@ export default function DockviewMemo() {
     versionRef.current++;
     lastInputTimeRef.current = Date.now();
     setSaveStatus(prev => prev !== "saving" ? "saving" : prev);
-    
+
     const nextTitles = { ...stateRef.current.titles, [id]: title };
     setTitles(nextTitles);
     persistState({ titles: nextTitles });
@@ -338,7 +430,7 @@ export default function DockviewMemo() {
     versionRef.current++;
     lastInputTimeRef.current = Date.now();
     setSaveStatus(prev => prev !== "saving" ? "saving" : prev);
-    
+
     const nextSettings = { ...stateRef.current.settings, ...newSettings };
     setSettings(nextSettings);
     persistState({ settings: nextSettings });
@@ -368,7 +460,7 @@ export default function DockviewMemo() {
     const nextTitles = { ...stateRef.current.titles };
     delete nextTitles[id];
     setTitles(nextTitles);
-    
+
     persistState({ titles: nextTitles, memos: nextMemos });
   }, [persistState]);
 
@@ -426,22 +518,31 @@ export default function DockviewMemo() {
     reader.onload = async (event) => {
       try {
         const json = JSON.parse(event.target?.result as string);
-        
+
         // Prevent background saves from overwriting the uploaded data
         skipPersistRef.current = true;
 
         // 1. Save to DB first
         await memoDB.setItem(STORAGE_KEY, json);
-        
+
         // 2. Update local state immediately so UI feels responsive
-        if (json.memos) setMemos(json.memos);
-        if (json.titles) setTitles(json.titles);
+        if (json.isEncrypted) {
+          setIsEncrypted(true);
+          isEncryptedRef.current = true;
+          setMemos(DEFAULT_MEMOS);
+          setTitles(DEFAULT_TITLES);
+        } else {
+          setIsEncrypted(false);
+          isEncryptedRef.current = false;
+          if (json.memos) setMemos(json.memos);
+          if (json.titles) setTitles(json.titles);
+        }
         if (json.settings) setSettings(json.settings);
         if (json.theme) {
           const dark = json.theme === "dark";
           setIsDarkMode(dark);
         }
-        
+
         // 3. Update layout if possible
         if (json.layout && apiRef.current) {
           try {
@@ -452,7 +553,7 @@ export default function DockviewMemo() {
         }
 
         toast.success("데이터를 성공적으로 업로드했습니다.");
-        
+
         // Short delay to allow state to settle before enabling persistence or reloading
         setTimeout(() => {
           skipPersistRef.current = false;
@@ -466,6 +567,81 @@ export default function DockviewMemo() {
     };
     reader.readAsText(file);
   }, []);
+
+  const toggleEncryption = useCallback(() => {
+    if (!isEncrypted) {
+      toast.securePrompt("암호화 key를 입력하세요", async (key) => {
+        if (!key) return;
+        let data = await memoDB.getItem<any>(STORAGE_KEY);
+        if (!data) {
+          data = { memos: stateRef.current.memos, titles: stateRef.current.titles };
+        }
+
+        const memosToEncrypt = data.memos || stateRef.current.memos;
+        data.memos = encryptMemosText(memosToEncrypt, key);
+        data.isEncrypted = true;
+        await memoDB.setItem(STORAGE_KEY, data);
+
+        setIsEncrypted(true);
+        isEncryptedRef.current = true;
+        setMemos(DEFAULT_MEMOS);
+        setTitles(DEFAULT_TITLES);
+        stateRef.current.memos = DEFAULT_MEMOS;
+        stateRef.current.titles = DEFAULT_TITLES;
+        toast.success("암호화되었습니다.");
+      }, { placeholder: "암호화 키 입력" });
+    } else {
+      toast.securePrompt("암호화 key를 입력하세요", async (key) => {
+        if (!key) return;
+        const data = await memoDB.getItem<any>(STORAGE_KEY);
+        if (data && data.isEncrypted && data.memos) {
+          let decryptedMemos;
+          
+          if (typeof data.memos === "string") {
+            let decryptedStr = "";
+            try {
+              const bytes = CryptoJS.AES.decrypt(data.memos, key);
+              if (bytes && typeof bytes.toString === "function") {
+                decryptedStr = bytes.toString(CryptoJS.enc.Utf8);
+              }
+            } catch (e) {
+              // 암호화 실패 에러 무시
+            }
+
+            try {
+              if (!decryptedStr) throw new Error("Empty decryption");
+              decryptedMemos = JSON.parse(decryptedStr);
+            } catch (e) {
+              const garbage = decryptedStr || data.memos;
+              decryptedMemos = {
+                "memo1": {
+                  type: "doc",
+                  content: [{ type: "paragraph", content: [{ type: "text", text: "Decoded: " + garbage }] }]
+                }
+              };
+            }
+          } else {
+            decryptedMemos = decryptMemosText(data.memos, key);
+          }
+
+          data.memos = decryptedMemos;
+          data.isEncrypted = false;
+          await memoDB.setItem(STORAGE_KEY, data);
+
+          setIsEncrypted(false);
+          isEncryptedRef.current = false;
+          setMemos(decryptedMemos);
+          if (data.titles) setTitles(data.titles);
+          stateRef.current.memos = decryptedMemos;
+          stateRef.current.titles = data.titles || DEFAULT_TITLES;
+          toast.success("암호화가 해제되었습니다.");
+        } else {
+          setIsEncrypted(false);
+          isEncryptedRef.current = false;
+        }
+      }, { placeholder: "복호화 키 입력" });
+    }
+  }, [isEncrypted]);
 
   const onReady = useCallback((event: DockviewReadyEvent) => {
     apiRef.current = event.api;
@@ -581,6 +757,24 @@ export default function DockviewMemo() {
                   <span className="px-1.5 py-0.5 rounded text-[10px] bg-cyan-500/10 text-cyan-500 border border-cyan-500/20 font-mono font-medium">PRO</span>
 
                   <SettingsButton />
+                  <button
+                    onClick={toggleEncryption}
+                    title={isEncrypted ? "암호화 해제" : "암호화 잠금"}
+                    className={`ml-0 p-1.5 rounded-lg transition-all flex items-center justify-center ${isEncrypted
+                        ? "bg-red-500/10 text-red-500 hover:bg-red-500/20"
+                        : "bg-slate-500/10 text-slate-400 hover:bg-slate-500/20"
+                      }`}
+                  >
+                    {isEncrypted ? (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                      </svg>
+                    )}
+                  </button>
                 </h1>
                 <div className="flex items-center gap-2 text-slate-500 text-[10px] font-medium uppercase tracking-widest transition-all duration-300">
                   {saveStatus === "saving" ? (
@@ -593,8 +787,8 @@ export default function DockviewMemo() {
                         <div className="flex flex-col">
                           <span className="text-amber-500/80 font-bold text-[9px] leading-none">SAVING...</span>
                           <div className="w-full h-1 bg-amber-500/10 rounded-full mt-0.5 overflow-hidden">
-                            <div 
-                              className="h-full bg-amber-500 transition-all ease-out duration-[2000ms]" 
+                            <div
+                              className="h-full bg-amber-500 transition-all ease-out duration-[2000ms]"
                               style={{ width: progressWidth }}
                             />
                           </div>

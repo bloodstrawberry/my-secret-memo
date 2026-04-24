@@ -1,4 +1,5 @@
 @import "tailwindcss";
+
 @font-face {
   font-family: 'JeonSoMin';
   src: url('/fonts/jeonsomin.ttf') format('truetype');
@@ -21,7 +22,7 @@
   --textarea-bg: #ffffff;
   --preview-bg: #ffffff;
   --footer-bg: #ffffff;
-  
+
   --dv-bg: #f8fafc;
   --dv-group-bg: #ffffff;
   --dv-tab-bg: #ffffff;
@@ -30,6 +31,8 @@
   --dv-active-tab-text: #0ea5e9;
   --dv-separator: #f1f5f9;
   --hr-color: #000000;
+  --dv-tab-font-size: 12px;
+  /* 탭 제목 폰트 크기 조절 변수 */
 }
 
 .dark {
@@ -63,23 +66,86 @@ body {
 .prose {
   line-height: 1.6;
 }
-.prose h1 { @apply text-2xl font-bold mb-4 mt-2; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; color: var(--foreground); }
-.prose h2 { @apply text-xl font-bold mb-3 mt-4; color: var(--foreground); }
-.prose h3 { @apply text-lg font-bold mb-2 mt-4; color: var(--foreground); }
-.prose p { @apply mb-4; color: var(--foreground); opacity: 0.9; }
-.prose ul { @apply list-disc ml-6 mb-4; }
-.prose ol { @apply list-decimal ml-6 mb-4; }
-.prose li { @apply mb-1; }
-.prose code { @apply bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-cyan-600 dark:text-cyan-300 font-mono text-sm; }
-.prose pre { @apply bg-slate-50 dark:bg-slate-900 p-4 rounded-lg overflow-x-auto mb-4 border border-slate-200 dark:border-slate-800; }
-.prose pre code { @apply bg-transparent p-0 text-slate-700 dark:text-slate-300; }
-.prose blockquote { @apply border-l-4 border-slate-200 dark:border-slate-700 pl-4 italic opacity-80 mb-4; }
-.prose a { @apply text-cyan-600 dark:text-cyan-500 underline hover:opacity-80 transition-colors; }
-.prose hr { @apply my-6; border: 0; border-top: 1px solid var(--hr-color); opacity: 1; }
-.prose table { @apply w-full border-collapse mb-4; }
-.prose th, .prose td { @apply border p-2 text-left; border-color: var(--border-color); }
-.prose th { background: rgba(0,0,0,0.03); }
-.dark .prose th { background: rgba(255,255,255,0.05); }
+
+.prose h1 {
+  @apply text-2xl font-bold mb-4 mt-2;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.5rem;
+  color: var(--foreground);
+}
+
+.prose h2 {
+  @apply text-xl font-bold mb-3 mt-4;
+  color: var(--foreground);
+}
+
+.prose h3 {
+  @apply text-lg font-bold mb-2 mt-4;
+  color: var(--foreground);
+}
+
+.prose p {
+  @apply mb-4;
+  color: var(--foreground);
+  opacity: 0.9;
+}
+
+.prose ul {
+  @apply list-disc ml-6 mb-4;
+}
+
+.prose ol {
+  @apply list-decimal ml-6 mb-4;
+}
+
+.prose li {
+  @apply mb-1;
+}
+
+.prose code {
+  @apply bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-cyan-600 dark:text-cyan-300 font-mono text-sm;
+}
+
+.prose pre {
+  @apply bg-slate-50 dark:bg-slate-900 p-4 rounded-lg overflow-x-auto mb-4 border border-slate-200 dark:border-slate-800;
+}
+
+.prose pre code {
+  @apply bg-transparent p-0 text-slate-700 dark:text-slate-300;
+}
+
+.prose blockquote {
+  @apply border-l-4 border-slate-200 dark:border-slate-700 pl-4 italic opacity-80 mb-4;
+}
+
+.prose a {
+  @apply text-cyan-600 dark:text-cyan-500 underline hover:opacity-80 transition-colors;
+}
+
+.prose hr {
+  @apply my-6;
+  border: 0;
+  border-top: 1px solid var(--hr-color);
+  opacity: 1;
+}
+
+.prose table {
+  @apply w-full border-collapse mb-4;
+}
+
+.prose th,
+.prose td {
+  @apply border p-2 text-left;
+  border-color: var(--border-color);
+}
+
+.prose th {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.dark .prose th {
+  background: rgba(255, 255, 255, 0.05);
+}
 
 /* Dockview Theme Customization */
 .dockview-theme-memo {
@@ -88,7 +154,7 @@ body {
 }
 
 .dockview-theme-memo .dv-tab {
-  font-size: 10px;
+  font-size: var(--dv-tab-font-size);
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -126,20 +192,28 @@ body {
   width: 6px;
   height: 6px;
 }
+
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: var(--dv-separator);
   border-radius: 10px;
 }
+
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: var(--dv-tab-text);
 }
 
 @keyframes spin-slow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .animate-spin-slow {
