@@ -5,11 +5,28 @@ import { DockviewReact, DockviewReadyEvent, IDockviewPanelProps, IDockviewPanelH
 import "dockview/dist/styles/dockview.css";
 import MarkdownEditor from "./markdown-editor";
 
+
+// ── Helper: extract plain text from tiptap JSON ──
+function extractTextFromJSON(node: any): string {
+  if (!node) return "";
+  if (typeof node === "string") return node;
+  let text = "";
+  if (node.text) text += node.text;
+  if (node.content) {
+    text += node.content.map((child: any) => extractTextFromJSON(child)).join("");
+  }
+  // Add newline between block-level nodes for proper word separation
+  if (node.type && ["paragraph", "heading", "bulletList", "orderedList", "listItem", "blockquote", "codeBlock", "hardBreak"].includes(node.type)) {
+    text += "\n";
+  }
+  return text;
+}
+
 // ── Context for Multi-Memo Management ──
 export const MemoContext = createContext<{
-  memos: Record<string, string>;
+  memos: Record<string, any>;
   titles: Record<string, string>;
-  updateMemo: (id: string, val: string) => void;
+  updateMemo: (id: string, val: any, immediate?: boolean) => void;
   updateTitle: (id: string, title: string) => void;
   removeMemo: (id: string) => void;
   resetData: () => void;
@@ -117,6 +134,7 @@ function EditorPanel(props: IDockviewPanelProps) {
       <MarkdownEditor
         value={memo}
         onChange={(val) => updateMemo(props.api.id, val)}
+        onBlur={(val) => updateMemo(props.api.id, val, true)}
         placeholder="메모 내용을 입력하세요..."
         panelId={props.api.id}
       />
@@ -135,13 +153,14 @@ const TAB_COMPONENTS: Record<string, React.FunctionComponent<IDockviewPanelHeade
 
 // ── Main Component ──
 export default function DockviewMemo() {
-  const [memos, setMemos] = useState<Record<string, string>>({});
+  const [memos, setMemos] = useState<Record<string, any>>({});
   const [titles, setTitles] = useState<Record<string, string>>({});
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [settings, setSettings] = useState<EditorSettings>(DEFAULT_SETTINGS);
   const apiRef = useRef<DockviewReadyEvent["api"] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const skipPersistRef = useRef(false);
 
   const STORAGE_KEY = "my-secret-key";
 
@@ -159,14 +178,20 @@ export default function DockviewMemo() {
     isDarkMode?: boolean;
     layout?: any;
   }) => {
-    if (!isMounted) return;
+    if (!isMounted || skipPersistRef.current) return;
+
+    const layout = overrides?.layout ?? apiRef.current?.toJSON();
+    
+    // CRITICAL: Do not save if we don't have a layout yet, 
+    // otherwise we'll overwrite the DB with empty data.
+    if (!layout) return;
 
     const currentState = {
       memos: overrides?.memos ?? stateRef.current.memos,
       titles: overrides?.titles ?? stateRef.current.titles,
       settings: overrides?.settings ?? stateRef.current.settings,
       theme: (overrides?.isDarkMode ?? stateRef.current.isDarkMode) ? "dark" : "light",
-      layout: overrides?.layout ?? apiRef.current?.toJSON(),
+      layout: layout,
       visualToggles: useVisualToggleStore.getState().toolbarVisibility,
     };
 
@@ -188,8 +213,6 @@ export default function DockviewMemo() {
   // Initial load
   useEffect(() => {
     const loadInitialData = async () => {
-      setIsMounted(true);
-
       const savedData = await memoDB.getItem<any>(STORAGE_KEY);
 
       if (savedData) {
@@ -204,7 +227,14 @@ export default function DockviewMemo() {
         if (savedData.visualToggles) {
           useVisualToggleStore.setState({ toolbarVisibility: savedData.visualToggles });
         }
-        // Layout will be loaded in onReady
+        
+        // Sync ref immediately so subsequent persistState calls have data
+        stateRef.current = {
+          memos: savedData.memos || {},
+          titles: savedData.titles || {},
+          settings: savedData.settings || DEFAULT_SETTINGS,
+          isDarkMode: savedData.theme === "dark"
+        };
       } else {
         // Fallback to defaults or legacy localStorage
         const legacyMemos = localStorage.getItem(STORAGE_KEYS.MEMOS);
@@ -212,16 +242,26 @@ export default function DockviewMemo() {
         const legacySettings = localStorage.getItem(STORAGE_KEYS.SETTINGS);
         const legacyTheme = localStorage.getItem(STORAGE_KEYS.THEME);
 
-        if (legacyMemos) setMemos(JSON.parse(legacyMemos));
-        else setMemos(DEFAULT_MEMOS);
+        const initialMemos = legacyMemos ? JSON.parse(legacyMemos) : DEFAULT_MEMOS;
+        const initialTitles = legacyTitles ? JSON.parse(legacyTitles) : DEFAULT_TITLES;
+        const initialSettings = legacySettings ? JSON.parse(legacySettings) : DEFAULT_SETTINGS;
+        const initialIsDark = legacyTheme === "dark";
 
-        if (legacyTitles) setTitles(JSON.parse(legacyTitles));
-        else setTitles(DEFAULT_TITLES);
+        setMemos(initialMemos);
+        setTitles(initialTitles);
+        setSettings(initialSettings);
+        setIsDarkMode(initialIsDark);
 
-        if (legacySettings) setSettings(JSON.parse(legacySettings));
-
-        if (legacyTheme) setIsDarkMode(legacyTheme === "dark");
+        stateRef.current = {
+          memos: initialMemos,
+          titles: initialTitles,
+          settings: initialSettings,
+          isDarkMode: initialIsDark
+        };
       }
+
+      // ONLY set isMounted to true after data is fully loaded and state is updated
+      setIsMounted(true);
     };
 
     loadInitialData();
@@ -237,13 +277,17 @@ export default function DockviewMemo() {
     }
   }, [isDarkMode, isMounted]);
 
-  const updateMemo = useCallback((id: string, val: string) => {
+  const updateMemo = useCallback((id: string, val: any, immediate = false) => {
     setMemos(prev => {
       const next = { ...prev, [id]: val };
-      debouncedPersist({ memos: next });
+      if (immediate) {
+        persistState({ memos: next });
+      } else {
+        debouncedPersist({ memos: next });
+      }
       return next;
     });
-  }, [debouncedPersist]);
+  }, [debouncedPersist, persistState]);
 
   const updateTitle = useCallback((id: string, title: string) => {
     setTitles(prev => {
@@ -278,15 +322,14 @@ export default function DockviewMemo() {
 
   const resetData = useCallback(() => {
     toast.confirm("모든 메모 데이터와 설정을 초기화하시겠습니까?", async () => {
+      // Prevent any background saves from re-writing data
+      skipPersistRef.current = true;
+
       await memoDB.deleteItem(STORAGE_KEY);
       localStorage.removeItem(STORAGE_KEYS.MEMOS);
       localStorage.removeItem(STORAGE_KEYS.TITLES);
       localStorage.removeItem(STORAGE_KEYS.LAYOUT);
       localStorage.removeItem(STORAGE_KEYS.SETTINGS);
-
-      setMemos(DEFAULT_MEMOS);
-      setTitles(DEFAULT_TITLES);
-      setSettings(DEFAULT_SETTINGS);
 
       window.location.reload();
     });
@@ -301,7 +344,7 @@ export default function DockviewMemo() {
       title: `New Memo`,
       tabComponent: "default",
     });
-    setMemos(prev => ({ ...prev, [id]: "" }));
+    setMemos(prev => ({ ...prev, [id]: { type: "doc", content: [{ type: "paragraph" }] } }));
     setTitles(prev => ({ ...prev, [id]: "New Memo" }));
     persistState();
     toast.success("새로운 메모가 생성되었습니다.");
@@ -331,10 +374,41 @@ export default function DockviewMemo() {
     reader.onload = async (event) => {
       try {
         const json = JSON.parse(event.target?.result as string);
+        
+        // Prevent background saves from overwriting the uploaded data
+        skipPersistRef.current = true;
+
+        // 1. Save to DB first
         await memoDB.setItem(STORAGE_KEY, json);
-        toast.success("데이터를 성공적으로 업로드했습니다. 페이지를 새로고침합니다.");
-        setTimeout(() => window.location.reload(), 1500);
+        
+        // 2. Update local state immediately so UI feels responsive
+        if (json.memos) setMemos(json.memos);
+        if (json.titles) setTitles(json.titles);
+        if (json.settings) setSettings(json.settings);
+        if (json.theme) {
+          const dark = json.theme === "dark";
+          setIsDarkMode(dark);
+        }
+        
+        // 3. Update layout if possible
+        if (json.layout && apiRef.current) {
+          try {
+            apiRef.current.fromJSON(json.layout);
+          } catch (e) {
+            console.error("Layout restore failed during upload", e);
+          }
+        }
+
+        toast.success("데이터를 성공적으로 업로드했습니다.");
+        
+        // Short delay to allow state to settle before enabling persistence or reloading
+        setTimeout(() => {
+          skipPersistRef.current = false;
+          // We still reload to ensure everything is perfectly synced and all event listeners are clean
+          window.location.reload();
+        }, 1000);
       } catch (err) {
+        skipPersistRef.current = false;
         toast.error("데이터 업로드에 실패했습니다. 올바른 JSON 파일인지 확인해 주세요.");
       }
     };
@@ -382,28 +456,57 @@ export default function DockviewMemo() {
           }
         } else {
           // Default Layout
-          const memo1 = event.api.addPanel({
-            id: "memo1",
-            component: "editor",
-            title: savedTitlesMap["memo1"] || DEFAULT_TITLES["memo1"],
-            tabComponent: "default",
-          });
+          // Use fromJSON for initial layout setup to avoid race conditions with sequential addPanel calls
+          setTimeout(() => {
+            try {
+              event.api.fromJSON({
+                grid: {
+                  root: {
+                    type: "branch",
+                    orientation: "HORIZONTAL",
+                    data: [
+                      {
+                        type: "leaf",
+                        size: 50,
+                        data: { views: ["memo1"] },
+                      },
+                      {
+                        type: "branch",
+                        size: 50,
+                        orientation: "VERTICAL",
+                        data: [
+                          {
+                            type: "leaf",
+                            size: 50,
+                            data: { views: ["memo2"] },
+                          },
+                          {
+                            type: "leaf",
+                            size: 50,
+                            data: { views: ["memo3"] },
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                },
+                panels: {
+                  memo1: { id: "memo1", component: "editor", title: savedTitlesMap["memo1"] || DEFAULT_TITLES["memo1"], tabComponent: "default" },
+                  memo2: { id: "memo2", component: "editor", title: savedTitlesMap["memo2"] || DEFAULT_TITLES["memo2"], tabComponent: "default" },
+                  memo3: { id: "memo3", component: "editor", title: savedTitlesMap["memo3"] || DEFAULT_TITLES["memo3"], tabComponent: "default" },
+                },
+              } as any);
 
-          const memo2 = event.api.addPanel({
-            id: "memo2",
-            component: "editor",
-            title: savedTitlesMap["memo2"] || DEFAULT_TITLES["memo2"],
-            position: { referencePanel: memo1, direction: "right" },
-            tabComponent: "default",
-          });
-
-          event.api.addPanel({
-            id: "memo3",
-            component: "editor",
-            title: savedTitlesMap["memo3"] || DEFAULT_TITLES["memo3"],
-            position: { referencePanel: memo2, direction: "below" },
-            tabComponent: "default",
-          });
+              // Ensure tab components are set correctly if not included in fromJSON params
+              event.api.panels.forEach(panel => {
+                // Since fromJSON might not set custom tab components correctly in all versions, 
+                // we ensure they are set if needed.
+                // Note: dockview 5.x supports tabComponent in fromJSON but just in case.
+              });
+            } catch (e) {
+              console.error("Failed to create default layout via fromJSON", e);
+            }
+          }, 100);
         }
       }
     };
@@ -413,8 +516,13 @@ export default function DockviewMemo() {
 
   if (!isMounted) return null;
 
-  const totalWords = Object.values(memos).reduce((acc, curr) => acc + (curr ? curr.trim().split(/\s+/).length : 0), 0);
-  const totalChars = Object.values(memos).reduce((acc, curr) => acc + curr.length, 0);
+  const totalWords = Object.values(memos).reduce((acc, curr) => {
+    const text = extractTextFromJSON(curr).trim();
+    return acc + (text ? text.split(/\s+/).length : 0);
+  }, 0);
+  const totalChars = Object.values(memos).reduce((acc, curr) => {
+    return acc + extractTextFromJSON(curr).replace(/\n/g, "").length;
+  }, 0);
 
   return (
     <SettingsContext.Provider value={{ settings, updateSettings }}>

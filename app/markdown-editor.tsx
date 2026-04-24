@@ -18,7 +18,6 @@ import { TaskList } from "@tiptap/extension-task-list";
 import { TaskItem } from "@tiptap/extension-task-item";
 import { Icon } from "@iconify/react";
 import { Markdown } from "tiptap-markdown";
-import { marked } from "marked";
 import { useSettings } from "./settings-context";
 import { useVisualToggleStore } from "./visual-toggle-store";
 
@@ -27,14 +26,18 @@ const ICON_SIZE = 18;
 const EDITOR_PADDING = "p-4"; // 그림에 보이는 간격을 조절하는 변수 (p-8 -> p-4로 변경)
 
 
+// Editor content is stored as tiptap JSON for lossless persistence
+type EditorJSON = Record<string, any>;
+
 interface MarkdownEditorProps {
-  value: string;
-  onChange: (value: string) => void;
+  value: EditorJSON | string;
+  onChange: (value: EditorJSON) => void;
+  onBlur?: (value: EditorJSON) => void;
   placeholder?: string;
   panelId?: string;
 }
 
-export default function MarkdownEditor({ value, onChange, placeholder, panelId }: MarkdownEditorProps) {
+export default function MarkdownEditor({ value, onChange, onBlur, placeholder, panelId }: MarkdownEditorProps) {
   const [isMounted, setIsMounted] = useState(false);
   const { settings } = useSettings();
   const { toolbarVisibility } = useVisualToggleStore();
@@ -94,10 +97,12 @@ export default function MarkdownEditor({ value, onChange, placeholder, panelId }
         nested: true,
       }),
     ],
-    content: value ? (marked.parse(value) as string) : "",
+    content: value || "",
     onUpdate: ({ editor }) => {
-      const markdown = (editor.storage as any).markdown.getMarkdown();
-      onChange(markdown);
+      onChange(editor.getJSON());
+    },
+    onBlur: ({ editor }) => {
+      onBlur?.(editor.getJSON());
     },
     editorProps: {
       attributes: {
@@ -107,12 +112,13 @@ export default function MarkdownEditor({ value, onChange, placeholder, panelId }
     immediatelyRender: false,
   });
 
-  // Sync external value changes
+  // Sync external value changes (compare by JSON string to avoid unnecessary updates)
   useEffect(() => {
     if (editor && isMounted && value !== undefined) {
-      const currentMarkdown = (editor.storage as any).markdown.getMarkdown();
-      if (currentMarkdown !== value) {
-        editor.commands.setContent(marked.parse(value) as string);
+      const currentJSON = JSON.stringify(editor.getJSON());
+      const incomingJSON = typeof value === 'string' ? value : JSON.stringify(value);
+      if (currentJSON !== incomingJSON) {
+        editor.commands.setContent(value);
       }
     }
   }, [value, editor, isMounted]);
