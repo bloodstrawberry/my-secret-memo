@@ -7,10 +7,6 @@ import { Underline } from "@tiptap/extension-underline";
 import { TextAlign } from "@tiptap/extension-text-align";
 import { Link } from "@tiptap/extension-link";
 import { Placeholder } from "@tiptap/extension-placeholder";
-import { Table } from "@tiptap/extension-table";
-import { TableRow } from "@tiptap/extension-table-row";
-import { TableCell } from "@tiptap/extension-table-cell";
-import { TableHeader } from "@tiptap/extension-table-header";
 import { Color } from "@tiptap/extension-color";
 import { TextStyle } from "@tiptap/extension-text-style";
 import { Highlight } from "@tiptap/extension-highlight";
@@ -106,12 +102,6 @@ export default function MarkdownEditor({ value, onChange, onBlur, placeholder, p
       TextStyle,
       Color,
       Highlight.configure({ multicolor: true }),
-      Table.configure({
-        resizable: true,
-      }),
-      TableRow,
-      TableHeader,
-      TableCell,
       TaskList,
       TaskItem.configure({
         nested: true,
@@ -349,56 +339,6 @@ export default function MarkdownEditor({ value, onChange, onBlur, placeholder, p
                 icon="material-symbols:format-align-right"
                 title="Align Right"
               />
-            </div>
-
-            <ToolbarDivider />
-
-            {/* Table Controls */}
-            <div className="flex items-center gap-1">
-              <ToolbarButton
-                onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
-                icon="material-symbols:table-chart"
-                title="Insert Table"
-              />
-              {editor.isActive("table") && (
-                <>
-                  <ToolbarButton
-                    onClick={() => editor.chain().focus().addColumnBefore().run()}
-                    icon="material-symbols:add-column-before"
-                    title="Add Column Before"
-                  />
-                  <ToolbarButton
-                    onClick={() => editor.chain().focus().addColumnAfter().run()}
-                    icon="material-symbols:add-column-after"
-                    title="Add Column After"
-                  />
-                  <ToolbarButton
-                    onClick={() => editor.chain().focus().deleteColumn().run()}
-                    icon="material-symbols:delete-column"
-                    title="Delete Column"
-                  />
-                  <ToolbarButton
-                    onClick={() => editor.chain().focus().addRowBefore().run()}
-                    icon="material-symbols:add-row-before"
-                    title="Add Row Before"
-                  />
-                  <ToolbarButton
-                    onClick={() => editor.chain().focus().addRowAfter().run()}
-                    icon="material-symbols:add-row-after"
-                    title="Add Row After"
-                  />
-                  <ToolbarButton
-                    onClick={() => editor.chain().focus().deleteRow().run()}
-                    icon="material-symbols:delete-row"
-                    title="Delete Row"
-                  />
-                  <ToolbarButton
-                    onClick={() => editor.chain().focus().deleteTable().run()}
-                    icon="material-symbols:table-rows-narrow"
-                    title="Delete Table"
-                  />
-                </>
-              )}
             </div>
 
             <ToolbarDivider />
