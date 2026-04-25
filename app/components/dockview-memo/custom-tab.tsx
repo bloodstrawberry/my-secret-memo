@@ -1,6 +1,7 @@
 import { useState, useEffect, useContext, memo } from "react";
 import { IDockviewPanelHeaderProps } from "dockview";
 import { MemoContext } from "./context";
+import { toast } from "../../toast";
 
 export const CustomTab = memo(function CustomTab(props: IDockviewPanelHeaderProps) {
   const { updateTitle } = useContext(MemoContext);
@@ -64,7 +65,9 @@ export const CustomTab = memo(function CustomTab(props: IDockviewPanelHeaderProp
       <button
         onClick={(e) => {
           e.stopPropagation();
-          props.api.close();
+          toast.confirm("탭을 종료하면 메모가 삭제됩니다. 종료하시겠습니까?", () => {
+            props.api.close();
+          });
         }}
         className="p-0.5 hover:bg-red-500/10 hover:text-red-500 rounded transition-all shrink-0 opacity-0 group-hover:opacity-60 hover:opacity-100"
       >
