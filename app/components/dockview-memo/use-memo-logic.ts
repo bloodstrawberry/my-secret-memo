@@ -273,7 +273,11 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "next-notepad.json";
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, "0");
+    const dateStr = `${now.getFullYear().toString().slice(-2)}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
+    const timeStr = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+    a.download = `next-notepad-${dateStr}-${timeStr}.json`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success("데이터를 성공적으로 다운로드했습니다.");
