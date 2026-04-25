@@ -5,6 +5,8 @@ import { showSecurePrompt } from "../../secure-prompt";
 import { DEFAULT_MEMOS, DEFAULT_TITLES, STORAGE_KEYS } from "../../default";
 import { memoDB } from "../../library/indexDB";
 import { useVisualToggleStore } from "../../visual-toggle-store";
+import { useAutoLockStore } from "../../auto-lock-store";
+import { useLoadingOverlay } from "../../loading-overlay-store";
 import { EditorSettings, DEFAULT_SETTINGS } from "../../settings-context";
 import { encryptMemosText, decryptMemosText } from "./utils";
 import { DockviewReadyEvent } from "dockview";
@@ -48,7 +50,11 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
   }) => {
     if (!isMounted || skipPersistRef.current) return;
 
-    if (isEncryptedRef.current) {
+    // Check auto-lock state
+    const { autoLockEnabled, sessionKey } = useAutoLockStore.getState();
+    const hasAutoLockSession = autoLockEnabled && sessionKey;
+
+    if (isEncryptedRef.current && !hasAutoLockSession) {
       if (versionRef.current === lastSavedVersionRef.current) {
         setSaveStatus("idle");
       }
@@ -58,15 +64,24 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     const layout = overrides?.layout ?? apiRef.current?.toJSON();
     if (!layout) return;
 
-    const currentState = {
-      memos: overrides?.memos ?? stateRef.current.memos,
-      titles: overrides?.titles ?? stateRef.current.titles,
+    const memosToSave = overrides?.memos ?? stateRef.current.memos;
+    const titlesToSave = overrides?.titles ?? stateRef.current.titles;
+
+    const currentState: any = {
+      memos: hasAutoLockSession ? encryptMemosText(memosToSave, sessionKey) : memosToSave,
+      titles: titlesToSave,
       settings: overrides?.settings ?? stateRef.current.settings,
       theme: (overrides?.isDarkMode ?? stateRef.current.isDarkMode) ? "dark" : "light",
       layout: layout,
       visualToggles: useVisualToggleStore.getState().toolbarVisibility,
       lastUpdated: new Date().toISOString(),
     };
+
+    // Mark encrypted state in persisted data
+    if (hasAutoLockSession) {
+      currentState.isEncrypted = true;
+      currentState.autoLock = true;
+    }
 
     const saveVersion = versionRef.current;
 
@@ -105,7 +120,10 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
       const savedData = await memoDB.getItem<any>(STORAGE_KEY);
 
       if (savedData) {
-        if (savedData.isEncrypted) {
+        // If auto-lock is ON, always force encrypted state on load
+        // (the session key is lost on reload so data stays locked)
+        const autoLockOn = useAutoLockStore.getState().autoLockEnabled;
+        if (savedData.isEncrypted || (autoLockOn && savedData.autoLock)) {
           setIsEncrypted(true);
           isEncryptedRef.current = true;
           setMemos(DEFAULT_MEMOS);
@@ -273,12 +291,22 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
   }, [persistState, apiRef]);
 
   const downloadData = useCallback(async () => {
-    const data = await memoDB.getItem(STORAGE_KEY);
+    const data = await memoDB.getItem<any>(STORAGE_KEY);
     if (!data) {
       toast.error("저장된 데이터가 없습니다.");
       return;
     }
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+
+    // If auto-lock is ON, download the encrypted data as-is
+    // (memos stay encrypted in indexedDB; we export that directly)
+    const autoLockOn = useAutoLockStore.getState().autoLockEnabled;
+    let exportData = data;
+    if (autoLockOn && data.isEncrypted) {
+      // Already encrypted in DB — export as-is
+      exportData = data;
+    }
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -286,15 +314,17 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     const pad = (n: number) => n.toString().padStart(2, "0");
     const dateStr = `${now.getFullYear().toString().slice(-2)}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
     const timeStr = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-    a.download = `next-notepad-${dateStr}-${timeStr}.json`;
+    a.download = `next-notepad-${dateStr}-${timeStr}${autoLockOn ? "-encrypted" : ""}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success("데이터를 성공적으로 다운로드했습니다.");
+    toast.success(autoLockOn ? "암호화된 데이터를 다운로드했습니다." : "데이터를 성공적으로 다운로드했습니다.");
   }, []);
 
   const uploadData = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    useLoadingOverlay.getState().show("업로드 중...");
 
     const reader = new FileReader();
     reader.onload = async (event) => {
@@ -334,6 +364,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
         }, 1000);
       } catch (err) {
         skipPersistRef.current = false;
+        useLoadingOverlay.getState().hide();
         toast.error("데이터 업로드에 실패했습니다. 올바른 JSON 파일인지 확인해 주세요.");
       }
     };
@@ -341,45 +372,73 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
   }, [apiRef]);
 
   const toggleEncryption = useCallback(() => {
+    const autoLockOn = useAutoLockStore.getState().autoLockEnabled;
+
     if (!isEncrypted) {
       showSecurePrompt("암호화 key를 입력하세요", async (key) => {
         if (!key) return;
-        let data = await memoDB.getItem<any>(STORAGE_KEY);
-        if (!data) {
-          data = { memos: stateRef.current.memos, titles: stateRef.current.titles };
+        useLoadingOverlay.getState().show("암호화 중...");
+        try {
+          let data = await memoDB.getItem<any>(STORAGE_KEY);
+          if (!data) {
+            data = { memos: stateRef.current.memos, titles: stateRef.current.titles };
+          }
+          const memosToEncrypt = data.memos || stateRef.current.memos;
+          data.memos = encryptMemosText(memosToEncrypt, key);
+          data.isEncrypted = true;
+          await memoDB.setItem(STORAGE_KEY, data);
+          setIsEncrypted(true);
+          isEncryptedRef.current = true;
+          setMemos(DEFAULT_MEMOS);
+          setTitles(DEFAULT_TITLES);
+          stateRef.current.memos = DEFAULT_MEMOS;
+          stateRef.current.titles = DEFAULT_TITLES;
+          toast.success("암호화되었습니다.");
+          setTimeout(() => useLoadingOverlay.getState().hide(), 600);
+        } catch {
+          useLoadingOverlay.getState().hide();
         }
-        const memosToEncrypt = data.memos || stateRef.current.memos;
-        data.memos = encryptMemosText(memosToEncrypt, key);
-        data.isEncrypted = true;
-        await memoDB.setItem(STORAGE_KEY, data);
-        setIsEncrypted(true);
-        isEncryptedRef.current = true;
-        setMemos(DEFAULT_MEMOS);
-        setTitles(DEFAULT_TITLES);
-        stateRef.current.memos = DEFAULT_MEMOS;
-        stateRef.current.titles = DEFAULT_TITLES;
-        toast.success("암호화되었습니다.");
       }, { placeholder: "암호화 키 입력" });
     } else {
       showSecurePrompt("암호화 key를 입력하세요", async (key) => {
         if (!key) return;
-        const data = await memoDB.getItem<any>(STORAGE_KEY);
-        if (data && data.isEncrypted && data.memos) {
-          let decryptedMemos;
-          decryptedMemos = decryptMemosText(data.memos, key);
-          data.memos = decryptedMemos;
-          data.isEncrypted = false;
-          await memoDB.setItem(STORAGE_KEY, data);
-          setIsEncrypted(false);
-          isEncryptedRef.current = false;
-          setMemos(decryptedMemos);
-          if (data.titles) setTitles(data.titles);
-          stateRef.current.memos = decryptedMemos;
-          stateRef.current.titles = data.titles || DEFAULT_TITLES;
-          toast.success("암호화가 해제되었습니다.");
-        } else {
-          setIsEncrypted(false);
-          isEncryptedRef.current = false;
+        useLoadingOverlay.getState().show("복호화 중...");
+        try {
+          const data = await memoDB.getItem<any>(STORAGE_KEY);
+          if (data && data.isEncrypted && data.memos) {
+            const decryptedMemos = decryptMemosText(data.memos, key);
+
+            if (autoLockOn) {
+              // Auto-lock ON: decrypt in memory only, keep encrypted in IndexedDB
+              // Store session key so persist logic can re-encrypt on save
+              useAutoLockStore.getState().setSessionKey(key);
+              setIsEncrypted(false);
+              isEncryptedRef.current = false;
+              setMemos(decryptedMemos);
+              if (data.titles) setTitles(data.titles);
+              stateRef.current.memos = decryptedMemos;
+              stateRef.current.titles = data.titles || DEFAULT_TITLES;
+              toast.success("잠금이 해제되었습니다. (AUTO LOCK 유지)");
+            } else {
+              // Normal unlock: save decrypted to IndexedDB
+              data.memos = decryptedMemos;
+              data.isEncrypted = false;
+              await memoDB.setItem(STORAGE_KEY, data);
+              setIsEncrypted(false);
+              isEncryptedRef.current = false;
+              setMemos(decryptedMemos);
+              if (data.titles) setTitles(data.titles);
+              stateRef.current.memos = decryptedMemos;
+              stateRef.current.titles = data.titles || DEFAULT_TITLES;
+              toast.success("암호화가 해제되었습니다.");
+            }
+          } else {
+            setIsEncrypted(false);
+            isEncryptedRef.current = false;
+          }
+          setTimeout(() => useLoadingOverlay.getState().hide(), 600);
+        } catch {
+          useLoadingOverlay.getState().hide();
         }
       }, { placeholder: "복호화 키 입력" });
     }

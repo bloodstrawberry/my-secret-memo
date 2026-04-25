@@ -13,6 +13,7 @@ import { Footer } from "./footer";
 import { useMemoLogic } from "./use-memo-logic";
 import { useDockviewManager } from "./use-dockview-manager";
 import { extractTextFromJSON } from "./utils";
+import LoadingOverlay from "../../loading-overlay";
 
 const COMPONENTS = {
   editor: EditorPanel,
@@ -79,6 +80,7 @@ export default function DockviewMemo() {
               className="dockview-theme-memo"
               rightHeaderActionsComponent={RightControls}
             />
+            <LoadingOverlay />
           </div>
 
           <Footer

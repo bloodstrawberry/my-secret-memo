@@ -5,6 +5,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Icon } from "@iconify/react";
 import { useSettings, DEFAULT_SETTINGS } from "./settings-context";
 import { useMemoStore } from "./dockview-memo";
+import { useAutoLockStore } from "./auto-lock-store";
+import { showSecurePrompt } from "./secure-prompt";
+import { toast } from "./toast";
+import { memoDB } from "./library/indexDB";
+import { DEFAULT_MEMOS, DEFAULT_TITLES } from "./default";
+import { encryptMemosText } from "./components/dockview-memo/utils";
+import { useLoadingOverlay } from "./loading-overlay-store";
 
 export function SettingsPopover({ onClose }: { onClose: () => void }) {
   const { settings, updateSettings } = useSettings();
@@ -121,9 +128,94 @@ export function SettingsPopover({ onClose }: { onClose: () => void }) {
           </div>
         </div>
         <div className="border-t border-[var(--border-color)] opacity-50" />
-        <MemoResetButton />
+        <div className="flex flex-col gap-1.5">
+          <AutoLockToggle />
+          <MemoResetButton />
+        </div>
       </div>
     </motion.div >
+  );
+}
+
+function AutoLockToggle() {
+  const { autoLockEnabled, setAutoLockEnabled, setSessionKey } = useAutoLockStore();
+  const { memos, titles } = useMemoStore();
+
+  const handleToggle = () => {
+    if (!autoLockEnabled) {
+      // Turning ON: prompt for key, encrypt, enable auto-lock
+      showSecurePrompt("AUTO LOCK 키를 입력하세요", async (key) => {
+        if (!key) return;
+
+        useLoadingOverlay.getState().show("암호화 중...");
+
+        // Encrypt the current memos and save with isEncrypted flag
+        const STORAGE_KEY = "my-secret-key";
+        let data = await memoDB.getItem<any>(STORAGE_KEY);
+        if (!data) {
+          data = { memos, titles };
+        }
+        const memosToEncrypt = data.memos || memos;
+        data.memos = encryptMemosText(memosToEncrypt, key);
+        data.isEncrypted = true;
+        data.autoLock = true;
+        await memoDB.setItem(STORAGE_KEY, data);
+
+        // Store key in memory only (NOT persisted)
+        setSessionKey(key);
+        setAutoLockEnabled(true);
+
+        toast.success("AUTO LOCK이 활성화되었습니다.");
+        // Reload to show locked state
+        setTimeout(() => window.location.reload(), 800);
+      }, { placeholder: "암호화 키 입력" });
+    } else {
+      // Turning OFF: confirm first, then decrypt and disable
+      showSecurePrompt("AUTO LOCK 해제 키를 입력하세요", async (key) => {
+        if (!key) return;
+
+        useLoadingOverlay.getState().show("복호화 중...");
+
+        const STORAGE_KEY = "my-secret-key";
+        const data = await memoDB.getItem<any>(STORAGE_KEY);
+        if (data && data.isEncrypted && data.memos) {
+          const { decryptMemosText } = await import("./components/dockview-memo/utils");
+          const decryptedMemos = decryptMemosText(data.memos, key);
+          data.memos = decryptedMemos;
+          data.isEncrypted = false;
+          data.autoLock = false;
+          await memoDB.setItem(STORAGE_KEY, data);
+
+          setSessionKey(null);
+          setAutoLockEnabled(false);
+
+          toast.success("AUTO LOCK이 해제되었습니다.");
+          setTimeout(() => window.location.reload(), 800);
+        } else {
+          useLoadingOverlay.getState().hide();
+          setSessionKey(null);
+          setAutoLockEnabled(false);
+          toast.info("AUTO LOCK이 해제되었습니다.");
+        }
+      }, { placeholder: "복호화 키 입력" });
+    }
+  };
+
+  return (
+    <button
+      onClick={handleToggle}
+      className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all active:scale-95 ${
+        autoLockEnabled
+          ? "bg-amber-500/10 hover:bg-amber-500/20 text-amber-500"
+          : "bg-slate-500/10 hover:bg-slate-500/20 text-slate-400"
+      }`}
+    >
+      <Icon
+        icon={autoLockEnabled ? "material-symbols:lock" : "material-symbols:lock-open-outline"}
+        className="w-3.5 h-3.5"
+      />
+      {autoLockEnabled ? "AUTO LOCK ON" : "AUTO LOCK OFF"}
+    </button>
   );
 }
 
@@ -136,9 +228,9 @@ function MemoResetButton() {
   return (
     <button
       onClick={resetData}
-      className="flex items-center justify-center gap-2 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[10px] font-bold uppercase tracking-widest transition-all active:scale-95"
+      className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[10px] font-bold uppercase tracking-wider transition-all active:scale-95"
     >
-      <Icon icon="material-symbols:delete-sweep-outline" className="w-4 h-4" />
+      <Icon icon="material-symbols:delete-sweep-outline" className="w-3.5 h-3.5" />
       초기화
     </button>
   );
@@ -166,3 +258,4 @@ export default function SettingsButton() {
     </div>
   );
 }
+
