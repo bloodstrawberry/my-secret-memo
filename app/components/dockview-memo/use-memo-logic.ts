@@ -18,6 +18,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success">("idle");
   const [progressWidth, setProgressWidth] = useState("0%");
   const [isEncrypted, setIsEncrypted] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   
   const skipPersistRef = useRef(false);
   const statusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -33,8 +34,8 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
   }, [isEncrypted]);
 
   // Use a ref to always have access to the latest state in debounced functions
-  const stateRef = useRef({ memos, titles, settings, isDarkMode });
-  stateRef.current = { memos, titles, settings, isDarkMode };
+  const stateRef = useRef({ memos, titles, settings, isDarkMode, lastUpdated });
+  stateRef.current = { memos, titles, settings, isDarkMode, lastUpdated };
 
   // Centralized persistence function
   const persistState = useCallback(async (overrides?: {
@@ -64,6 +65,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
       theme: (overrides?.isDarkMode ?? stateRef.current.isDarkMode) ? "dark" : "light",
       layout: layout,
       visualToggles: useVisualToggleStore.getState().toolbarVisibility,
+      lastUpdated: new Date().toISOString(),
     };
 
     const saveVersion = versionRef.current;
@@ -75,6 +77,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
 
       if (!overrides?.silent && versionRef.current === lastSavedVersionRef.current) {
         setSaveStatus("success");
+        setLastUpdated(currentState.lastUpdated);
         if (statusTimeoutRef.current) clearTimeout(statusTimeoutRef.current);
         statusTimeoutRef.current = setTimeout(() => {
           setSaveStatus(prev => prev === "success" ? "idle" : prev);
@@ -111,7 +114,8 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
             memos: DEFAULT_MEMOS,
             titles: DEFAULT_TITLES,
             settings: savedData.settings || DEFAULT_SETTINGS,
-            isDarkMode: savedData.theme === "dark"
+            isDarkMode: savedData.theme === "dark",
+            lastUpdated: savedData.lastUpdated
           };
         } else {
           if (savedData.memos) setMemos(savedData.memos);
@@ -120,7 +124,8 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
             memos: savedData.memos || {},
             titles: savedData.titles || {},
             settings: savedData.settings || DEFAULT_SETTINGS,
-            isDarkMode: savedData.theme === "dark"
+            isDarkMode: savedData.theme === "dark",
+            lastUpdated: savedData.lastUpdated
           };
         }
 
@@ -132,6 +137,9 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
         }
         if (savedData.visualToggles) {
           useVisualToggleStore.setState({ toolbarVisibility: savedData.visualToggles });
+        }
+        if (savedData.lastUpdated) {
+          setLastUpdated(savedData.lastUpdated);
         }
       } else {
         const legacyMemos = localStorage.getItem(STORAGE_KEYS.MEMOS);
@@ -153,7 +161,8 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
           memos: initialMemos,
           titles: initialTitles,
           settings: initialSettings,
-          isDarkMode: initialIsDark
+          isDarkMode: initialIsDark,
+          lastUpdated: null
         };
       }
       setIsMounted(true);
@@ -378,7 +387,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
 
   return {
     memos, titles, isDarkMode, setIsDarkMode, isMounted, settings, updateSettings,
-    saveStatus, progressWidth, isEncrypted, persistState, removeMemo, resetData,
+    saveStatus, progressWidth, isEncrypted, lastUpdated, persistState, removeMemo, resetData,
     updateMemo, updateTitle, addMemo, downloadData, uploadData, toggleEncryption
   };
 }

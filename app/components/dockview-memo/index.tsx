@@ -28,7 +28,7 @@ export default function DockviewMemo() {
 
   const {
     memos, titles, isDarkMode, setIsDarkMode, isMounted, settings, updateSettings,
-    saveStatus, progressWidth, isEncrypted, persistState, removeMemo, resetData,
+    saveStatus, progressWidth, isEncrypted, lastUpdated, persistState, removeMemo, resetData,
     updateMemo, updateTitle, addMemo, downloadData, uploadData, toggleEncryption
   } = useMemoLogic(apiRef);
 
@@ -85,6 +85,7 @@ export default function DockviewMemo() {
             totalWords={totalWords}
             totalChars={totalChars}
             memoCount={Object.keys(memos).length}
+            lastUpdated={lastUpdated}
           />
         </main>
       </MemoContext.Provider>
