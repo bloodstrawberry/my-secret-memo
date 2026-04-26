@@ -1,8 +1,27 @@
-import { useContext, useState, memo, KeyboardEvent } from "react";
+import { useContext, useState, memo, KeyboardEvent, useMemo } from "react";
 import { IDockviewPanelProps } from "dockview";
 import { Icon } from "@iconify/react";
 import { MemoContext } from "./context";
 import { useSettings } from "@/app/context/settings-context";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  TouchSensor,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { restrictToVerticalAxis, restrictToWindowEdges } from "@dnd-kit/modifiers";
 
 interface TodoItem {
   id: string;
@@ -14,6 +33,102 @@ interface TodoData {
   items: TodoItem[];
 }
 
+interface SortableTodoItemProps {
+  item: TodoItem;
+  editingId: string | null;
+  editingText: string;
+  setEditingText: (text: string) => void;
+  handleEditStart: (item: TodoItem) => void;
+  handleEditSave: () => void;
+  handleEditKeyDown: (e: KeyboardEvent<HTMLInputElement>) => void;
+  toggleCompleted: (id: string) => void;
+  deleteItem: (id: string) => void;
+}
+
+const SortableTodoItem = memo(function SortableTodoItem({
+  item,
+  editingId,
+  editingText,
+  setEditingText,
+  handleEditStart,
+  handleEditSave,
+  handleEditKeyDown,
+  toggleCompleted,
+  deleteItem,
+}: SortableTodoItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : "auto",
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`group flex items-center gap-3 p-3 rounded-xl border transition-all flex-shrink-0 ${item.completed
+        ? "bg-slate-500/5 border-transparent text-slate-400"
+        : "bg-[var(--background)] border-[var(--border-color)] hover:border-cyan-500/50 text-[var(--foreground)] shadow-sm"
+        } ${isDragging ? "shadow-lg border-cyan-500" : ""}`}
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        className="flex-shrink-0 cursor-grab active:cursor-grabbing p-1 -ml-1 text-slate-400 hover:text-cyan-500 transition-colors"
+      >
+        <Icon icon="mdi:drag-vertical" className="w-5 h-5" />
+      </div>
+
+      <button
+        onClick={() => toggleCompleted(item.id)}
+        className={`flex-shrink-0 w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${item.completed
+          ? "bg-emerald-500 border-emerald-500 text-white"
+          : "border-slate-400 hover:border-cyan-500 text-transparent hover:text-cyan-500/30"
+          }`}
+      >
+        <Icon icon="mdi:check" className="w-4 h-4" />
+      </button>
+
+      {editingId === item.id ? (
+        <input
+          autoFocus
+          type="text"
+          value={editingText}
+          onChange={(e) => setEditingText(e.target.value)}
+          onBlur={handleEditSave}
+          onKeyDown={handleEditKeyDown}
+          className="flex-1 bg-transparent border-b border-cyan-500 outline-none text-sm text-[var(--foreground)]"
+        />
+      ) : (
+        <span
+          onDoubleClick={() => handleEditStart(item)}
+          title={item.text}
+          className={`flex-1 whitespace-nowrap overflow-hidden text-ellipsis text-sm transition-all cursor-text select-none ${item.completed ? "line-through opacity-70" : ""}`}
+        >
+          {item.text}
+        </span>
+      )}
+
+      <button
+        onClick={() => deleteItem(item.id)}
+        className="flex-shrink-0 opacity-0 group-hover:opacity-100 p-1.5 text-red-500/70 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+      >
+        <Icon icon="mdi:trash-can-outline" className="w-4 h-4" />
+      </button>
+    </div>
+  );
+});
+
 export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelProps) {
   const { memos, updateMemo } = useContext(MemoContext);
   const { settings } = useSettings();
@@ -22,6 +137,22 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const updateItems = (newItems: TodoItem[]) => {
     updateMemo(props.api.id, { ...memoData, items: newItems });
@@ -81,6 +212,18 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
     updateItems(newItems);
   };
 
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = memoData.items.findIndex((item) => item.id === active.id);
+      const newIndex = memoData.items.findIndex((item) => item.id === over.id);
+
+      const newItems = arrayMove(memoData.items, oldIndex, newIndex);
+      updateItems(newItems);
+    }
+  };
+
   const total = memoData.items.length;
   const completedCount = memoData.items.filter(i => i.completed).length;
 
@@ -129,55 +272,36 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
               <p className="text-sm font-medium">No tasks yet.</p>
             </div>
           ) : (
-            memoData.items.map((item) => (
-              <div
-                key={item.id}
-                className={`group flex items-center gap-3 p-3 rounded-xl border transition-all flex-shrink-0 ${item.completed
-                  ? "bg-slate-500/5 border-transparent text-slate-400"
-                  : "bg-[var(--background)] border-[var(--border-color)] hover:border-cyan-500/50 text-[var(--foreground)] shadow-sm"
-                  }`}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+              modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}
+            >
+              <SortableContext
+                items={memoData.items.map(i => i.id)}
+                strategy={verticalListSortingStrategy}
               >
-                <button
-                  onClick={() => toggleCompleted(item.id)}
-                  className={`flex-shrink-0 w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${item.completed
-                    ? "bg-emerald-500 border-emerald-500 text-white"
-                    : "border-slate-400 hover:border-cyan-500 text-transparent hover:text-cyan-500/30"
-                    }`}
-                >
-                  <Icon icon="mdi:check" className="w-4 h-4" />
-                </button>
-
-                {editingId === item.id ? (
-                  <input
-                    autoFocus
-                    type="text"
-                    value={editingText}
-                    onChange={(e) => setEditingText(e.target.value)}
-                    onBlur={handleEditSave}
-                    onKeyDown={handleEditKeyDown}
-                    className="flex-1 bg-transparent border-b border-cyan-500 outline-none text-sm text-[var(--foreground)]"
+                {memoData.items.map((item) => (
+                  <SortableTodoItem
+                    key={item.id}
+                    item={item}
+                    editingId={editingId}
+                    editingText={editingText}
+                    setEditingText={setEditingText}
+                    handleEditStart={handleEditStart}
+                    handleEditSave={handleEditSave}
+                    handleEditKeyDown={handleEditKeyDown}
+                    toggleCompleted={toggleCompleted}
+                    deleteItem={deleteItem}
                   />
-                ) : (
-                  <span
-                    onDoubleClick={() => handleEditStart(item)}
-                    title={item.text}
-                    className={`flex-1 whitespace-nowrap overflow-hidden text-ellipsis text-sm transition-all cursor-text select-none ${item.completed ? "line-through opacity-70" : ""}`}
-                  >
-                    {item.text}
-                  </span>
-                )}
-
-                <button
-                  onClick={() => deleteItem(item.id)}
-                  className="flex-shrink-0 opacity-0 group-hover:opacity-100 p-1.5 text-red-500/70 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
-                >
-                  <Icon icon="mdi:trash-can-outline" className="w-4 h-4" />
-                </button>
-              </div>
-            ))
+                ))}
+              </SortableContext>
+            </DndContext>
           )}
         </div>
       </div>
     </div>
   );
 });
+
