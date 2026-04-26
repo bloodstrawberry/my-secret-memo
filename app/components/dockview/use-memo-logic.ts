@@ -293,8 +293,14 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
         Object.keys(nextTitles).forEach(id => {
           if (id.startsWith("memo")) delete nextTitles[id];
         });
-        Object.assign(nextMemos, DEFAULT_MEMOS);
-        Object.assign(nextTitles, DEFAULT_TITLES);
+
+        // Pick only memo defaults
+        Object.keys(DEFAULT_MEMOS).forEach(key => {
+          if (key.startsWith("memo")) nextMemos[key] = DEFAULT_MEMOS[key];
+        });
+        Object.keys(DEFAULT_TITLES).forEach(key => {
+          if (key.startsWith("memo")) nextTitles[key] = DEFAULT_TITLES[key];
+        });
         
         setMemos(nextMemos);
         setTitles(nextTitles);
@@ -315,6 +321,14 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
           if (id.startsWith("todo")) delete nextTitles[id];
         });
         
+        // Pick only todo defaults
+        Object.keys(DEFAULT_MEMOS).forEach(key => {
+          if (key.startsWith("todo")) nextMemos[key] = DEFAULT_MEMOS[key];
+        });
+        Object.keys(DEFAULT_TITLES).forEach(key => {
+          if (key.startsWith("todo")) nextTitles[key] = DEFAULT_TITLES[key];
+        });
+
         setMemos(nextMemos);
         setTitles(nextTitles);
         persistState({ memos: nextMemos, titles: nextTitles });

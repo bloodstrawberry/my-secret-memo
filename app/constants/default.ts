@@ -24,7 +24,7 @@ export const DEFAULT_MEMOS: Record<string, any> = {
 
 export const DEFAULT_TITLES: Record<string, string> = {
   "memo1": "MEMO1",
-  "todo1": "TODO LIST",
+  "todo1": "TO-DO LIST",
   "memo2": "MEMO2",
 };
 
