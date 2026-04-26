@@ -623,6 +623,10 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     const { autoLockEnabled, setSessionKey } = useAutoLockStore.getState();
 
     if (!isEncrypted) {
+      if (autoLockEnabled) {
+        toast.info("AUTO LOCK을 해제해주세요");
+        return;
+      }
       showSecurePrompt("암호화 key를 입력하세요", async (key) => {
         if (!key) return;
 
