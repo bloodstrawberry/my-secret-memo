@@ -100,8 +100,15 @@ export const toast = {
       icon: <Icon icon="material-symbols:warning-outline" className="w-5 h-5 text-amber-500" />,
     }),
   // Custom confirmation toast
-  confirm: (message: string, onConfirm: () => void, options?: { confirmText?: string; cancelText?: string }) => {
+  confirm: (message: string, onConfirm: () => void, options?: { confirmText?: string; cancelText?: string; type?: "info" | "warning" | "danger" }) => {
     sonnerToast.dismiss();
+    const type = options?.type || "info";
+    const iconMap = {
+      info: <Icon icon="material-symbols:help-outline" className="w-5 h-5 text-cyan-500" />,
+      warning: <Icon icon="material-symbols:warning-outline" className="w-5 h-5 text-amber-500" />,
+      danger: <Icon icon="material-symbols:error-outline" className="w-5 h-5 text-red-500" />,
+    };
+
     sonnerToast(message, {
       closeButton: false,
       duration: Infinity,
@@ -113,7 +120,7 @@ export const toast = {
         label: options?.cancelText || "취소",
         onClick: () => {},
       },
-      icon: <Icon icon="material-symbols:help-outline" className="w-5 h-5 text-cyan-500" />,
+      icon: iconMap[type],
     });
   },
   // Custom prompt toast
