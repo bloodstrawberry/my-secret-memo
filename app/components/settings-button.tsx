@@ -138,10 +138,14 @@ export function SettingsPopover({ onClose }: { onClose: () => void }) {
 }
 
 function AutoLockToggle() {
-  const { autoLockEnabled, setAutoLockEnabled, setSessionKey, keyError, setKeyError } = useAutoLockStore();
-  const { memos, titles } = useMemoStore();
+  const { autoLockEnabled, setAutoLockEnabled, setSessionKey, keyError, setKeyError, sessionKey } = useAutoLockStore();
+  const { memos, titles, isEncrypted } = useMemoStore();
+
+  const isDisabled = keyError || isEncrypted;
 
   const handleToggle = () => {
+    if (isDisabled) return;
+
     if (!autoLockEnabled) {
       // Turning ON: prompt for key, encrypt, enable auto-lock
       showSecurePrompt("AUTO LOCK 키를 입력하세요", async (key) => {
@@ -228,38 +232,40 @@ function AutoLockToggle() {
   return (
     <button
       onClick={handleToggle}
-      disabled={keyError}
+      disabled={isDisabled}
       className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${
         autoLockEnabled
-          ? keyError
+          ? isDisabled
             ? "bg-red-500/10 text-red-500 opacity-50 cursor-not-allowed"
             : "bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 active:scale-95"
-          : "bg-slate-500/10 hover:bg-slate-500/20 text-slate-400 active:scale-95"
+          : isDisabled
+            ? "bg-slate-500/10 text-slate-400 opacity-50 cursor-not-allowed"
+            : "bg-slate-500/10 hover:bg-slate-500/20 text-slate-400 active:scale-95"
       }`}
     >
       <Icon
         icon={
           autoLockEnabled
-            ? keyError
+            ? isDisabled
               ? "mdi:lock-alert-outline"
               : "material-symbols:lock"
-            : "material-symbols:lock-open-outline"
+            : isDisabled
+              ? "mdi:lock-alert-outline"
+              : "material-symbols:lock-open-outline"
         }
         className="w-3.5 h-3.5"
       />
-      {autoLockEnabled ? (keyError ? "KEY MISMATCH" : "AUTO LOCK ON") : "AUTO LOCK OFF"}
+      {autoLockEnabled 
+        ? (keyError ? "KEY MISMATCH" : "AUTO LOCK ON") 
+        : "AUTO LOCK OFF"}
     </button>
   );
 }
 
 function MemoResetButton() {
   const { resetData } = useMemoStore();
-  const { setSessionKey, setAutoLockEnabled, setKeyError } = useAutoLockStore();
 
   const handleReset = () => {
-    setSessionKey(null);
-    setAutoLockEnabled(false);
-    setKeyError(false);
     resetData();
   };
 

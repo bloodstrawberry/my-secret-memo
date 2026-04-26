@@ -271,6 +271,13 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
   const resetData = useCallback(() => {
     toast.confirm("모든 메모 데이터와 설정을 초기화하시겠습니까?", async () => {
       skipPersistRef.current = true;
+      
+      // Clear auto-lock store states after confirmation
+      const { setSessionKey, setAutoLockEnabled, setKeyError } = useAutoLockStore.getState();
+      setSessionKey(null);
+      setAutoLockEnabled(false);
+      setKeyError(false);
+
       await memoDB.deleteItem(STORAGE_KEY);
       localStorage.removeItem(STORAGE_KEYS.MEMOS);
       localStorage.removeItem(STORAGE_KEYS.TITLES);
