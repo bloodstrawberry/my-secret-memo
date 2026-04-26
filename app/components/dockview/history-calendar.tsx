@@ -27,9 +27,10 @@ const MONTHS = ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", 
 
 interface HistoryCalendarProps {
   onSelectDate: (dateKey: string | null) => void;
+  disabled?: boolean;
 }
 
-export function HistoryCalendar({ onSelectDate }: HistoryCalendarProps) {
+export function HistoryCalendar({ onSelectDate, disabled }: HistoryCalendarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isListExpanded, setIsListExpanded] = useState(false);
   const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear());
@@ -40,7 +41,7 @@ export function HistoryCalendar({ onSelectDate }: HistoryCalendarProps) {
   const { viewingDate, isReadOnly } = useHistoryStore();
   const { autoLockEnabled, sessionKey } = useAutoLockStore();
 
-  const isLocked = autoLockEnabled && !sessionKey;
+  const isLocked = disabled || (autoLockEnabled && !sessionKey);
   const todayKey = getTodayKey();
 
   const loadDates = useCallback(async () => {
@@ -98,6 +99,20 @@ export function HistoryCalendar({ onSelectDate }: HistoryCalendarProps) {
     onSelectDate(dateKey);
     setIsOpen(false);
     setIsListExpanded(false);
+
+    // If a historical date is selected, sync the calendar month/year
+    if (dateKey) {
+      const [y, m] = dateKey.split("-").map(Number);
+      if (!isNaN(y) && !isNaN(m)) {
+        setCurrentYear(y);
+        setCurrentMonth(m - 1);
+      }
+    } else {
+      // If returning to Today, reset calendar to today's month/year
+      const now = new Date();
+      setCurrentYear(now.getFullYear());
+      setCurrentMonth(now.getMonth());
+    }
   };
 
   // Build grid cells
@@ -128,10 +143,14 @@ export function HistoryCalendar({ onSelectDate }: HistoryCalendarProps) {
     <div className="relative" ref={calendarRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
+        disabled={isLocked}
+        title={isLocked ? "잠금을 해제해야 이력을 볼 수 있습니다" : (isReadOnly ? `이력 보기: ${viewingDate}` : "과거 이력")}
         className={`ml-0 p-1.5 rounded-lg transition-all flex items-center justify-center ${
-          isReadOnly
-            ? "bg-amber-500/10 text-amber-500 hover:bg-amber-500/20"
-            : "bg-slate-500/10 text-slate-400 hover:bg-slate-500/20"
+          isLocked
+            ? "opacity-50 cursor-not-allowed bg-slate-500/5 text-slate-500/30"
+            : isReadOnly
+              ? "bg-amber-500/10 text-amber-500 hover:bg-amber-500/20"
+              : "bg-slate-500/10 text-slate-400 hover:bg-slate-500/20"
         }`}
       >
         <Icon icon="mdi:calendar-clock" className="w-5 h-5" />

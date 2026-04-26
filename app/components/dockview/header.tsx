@@ -71,7 +71,10 @@ export function Header({
             <SettingsButton />
 
             {/* History Calendar - between Settings and Lock */}
-            <HistoryCalendar onSelectDate={loadHistoryDate} />
+            <HistoryCalendar 
+              onSelectDate={loadHistoryDate} 
+              disabled={isEncrypted} 
+            />
 
             {isReadOnly && viewingDate && (
               <button

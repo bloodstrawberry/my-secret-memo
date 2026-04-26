@@ -50,6 +50,15 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     isEncryptedRef.current = isEncrypted;
   }, [isEncrypted]);
 
+  // Security: Auto-exit history mode if app becomes locked
+  useEffect(() => {
+    const { autoLockEnabled, sessionKey } = useAutoLockStore.getState();
+    const { isReadOnly } = useHistoryStore.getState();
+    if (autoLockEnabled && !sessionKey && isReadOnly) {
+      loadHistoryDate(null);
+    }
+  }, [isEncrypted]); // Trigger when lock state might have changed
+
   // Use a ref to always have access to the latest state in debounced functions
   const stateRef = useRef({ memos, titles, settings, isDarkMode, lastUpdated });
   stateRef.current = { memos, titles, settings, isDarkMode, lastUpdated };
@@ -307,7 +316,6 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
 
   const removeMemo = useCallback((id: string) => {
     if (useHistoryStore.getState().isReadOnly) {
-      toast.error("읽기 전용 모드에서는 삭제할 수 없습니다.");
       return;
     }
     const nextMemos = { ...stateRef.current.memos };
@@ -354,7 +362,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
         Object.keys(DEFAULT_TITLES).forEach(key => {
           if (key.startsWith("memo")) nextTitles[key] = DEFAULT_TITLES[key];
         });
-        
+
         setMemos(nextMemos);
         setTitles(nextTitles);
         persistState({ memos: nextMemos, titles: nextTitles });
@@ -373,7 +381,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
         Object.keys(nextTitles).forEach(id => {
           if (id.startsWith("todo")) delete nextTitles[id];
         });
-        
+
         // Pick only todo defaults
         Object.keys(DEFAULT_MEMOS).forEach(key => {
           if (key.startsWith("todo")) nextMemos[key] = DEFAULT_MEMOS[key];
@@ -430,7 +438,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     const initialContent = type === "memo"
       ? { type: "doc", content: [{ type: "paragraph" }] }
       : type === "todo" ? { items: [] }
-      : [{ name: "Sheet1", celldata: [], status: 1 }];
+        : [{ name: "Sheet1", celldata: [], status: 1 }];
 
     setMemos(prev => ({ ...prev, [id]: initialContent }));
     setTitles(prev => ({ ...prev, [id]: title }));
@@ -439,7 +447,17 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
   }, [persistState, apiRef]);
 
   const downloadData = useCallback(async (mode: "current" | "full" = "current") => {
-    const data = await memoDB.getItem<any>(STORAGE_KEY);
+    let data: any;
+    const { viewingDate, isReadOnly } = useHistoryStore.getState();
+
+    if (mode === "current" && isReadOnly && viewingDate) {
+      // If viewing history, download the snapshot data as the 'current' file
+      data = await memoDB.getHistoryItem<any>(viewingDate);
+    } else {
+      // Default: get live data
+      data = await memoDB.getItem<any>(STORAGE_KEY);
+    }
+
     if (!data) {
       toast.error("저장된 데이터가 없습니다.");
       return;
@@ -455,18 +473,20 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     let filename: string;
 
     if (mode === "full") {
-      // Full mode: include all history entries
+      // Full mode: include all history entries (always include live data in full export)
+      const liveData = await memoDB.getItem<any>(STORAGE_KEY);
       const historyKeys = await memoDB.getAllHistoryKeys();
       const history: Record<string, any> = {};
       for (const key of historyKeys) {
         const entry = await memoDB.getHistoryItem<any>(key);
         if (entry) history[key] = entry;
       }
-      exportData = { ...data, __history: history };
+      exportData = { ...(liveData || data), __history: history };
       filename = `next-notepad-full-${dateStr}-${timeStr}${autoLockOn ? "-encrypted" : ""}.json`;
     } else {
       exportData = data;
-      filename = `next-notepad-${dateStr}-${timeStr}${autoLockOn ? "-encrypted" : ""}.json`;
+      const displayDate = isReadOnly && viewingDate ? viewingDate : dateStr;
+      filename = `next-notepad-${displayDate}-${timeStr}${autoLockOn ? "-encrypted" : ""}.json`;
     }
 
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
@@ -500,12 +520,12 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
         const mainData = { ...json };
         delete mainData.__history;
 
+        // Always clear existing history first to ensure the app state matches the uploaded file
+        await memoDB.clearHistory();
         await memoDB.setItem(STORAGE_KEY, mainData);
 
-        // Restore history entries
+        // Restore history entries if present
         if (historyData && typeof historyData === "object") {
-          // Clear existing history first
-          await memoDB.clearHistory();
           const keys = Object.keys(historyData).sort();
           // Only keep up to MAX_HISTORY entries
           const keysToRestore = keys.slice(-MAX_HISTORY);
@@ -562,6 +582,13 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     if (!isEncrypted) {
       showSecurePrompt("암호화 key를 입력하세요", async (key) => {
         if (!key) return;
+
+        // If viewing history, return to Today after key is entered
+        const { isReadOnly } = useHistoryStore.getState();
+        if (isReadOnly) {
+          loadHistoryDate(null);
+        }
+
         useLoadingOverlay.getState().show("암호화 중...");
         try {
           let data = await memoDB.getItem<any>(STORAGE_KEY);
@@ -580,7 +607,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
           setTitles(DEFAULT_TITLES);
           stateRef.current.memos = DEFAULT_MEMOS;
           stateRef.current.titles = DEFAULT_TITLES;
-          toast.success("암호화되었습니다.");
+
           setTimeout(() => useLoadingOverlay.getState().hide(), 600);
         } catch {
           useLoadingOverlay.getState().hide();
@@ -652,6 +679,13 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
   // Load a historical date snapshot
   const loadHistoryDate = useCallback(async (dateKey: string | null) => {
     const { setViewingDate } = useHistoryStore.getState();
+    const { autoLockEnabled, sessionKey } = useAutoLockStore.getState();
+
+    // Block access if app is locked (auto-lock ON but no session key)
+    if (autoLockEnabled && !sessionKey && dateKey !== null) {
+      toast.error("잠금을 해제해야 이력을 볼 수 있습니다.");
+      return;
+    }
 
     if (dateKey === null) {
       // Return to live mode: reload from main storage
@@ -676,7 +710,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
           try { apiRef.current.fromJSON(savedData.layout); } catch (e) { console.error(e); }
         }
       }
-      toast.success("오늘 데이터로 돌아왔습니다.");
+      toast.success("암호화 성공! 오늘 데이터로 돌아왔습니다.");
       return;
     }
 
