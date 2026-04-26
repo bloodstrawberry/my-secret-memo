@@ -6,6 +6,13 @@ export const DEFAULT_MEMOS: Record<string, any> = {
       { type: "paragraph", content: [{ type: "text", text: "여기에 첫 번째 메모를 작성하세요." }] },
     ],
   },
+  "todo1": {
+    items: [
+      { id: "todo-1", text: "Next Notepad 사용해보기", completed: true },
+      { id: "todo-2", text: "새로운 메모 작성하기", completed: false },
+      { id: "todo-3", text: "보안 기능 확인하기 (Auto Lock)", completed: false },
+    ],
+  },
   "memo2": {
     type: "doc",
     content: [
@@ -13,19 +20,12 @@ export const DEFAULT_MEMOS: Record<string, any> = {
       { type: "paragraph", content: [{ type: "text", text: "여기에 두 번째 메모를 작성하세요." }] },
     ],
   },
-  "memo3": {
-    type: "doc",
-    content: [
-      { type: "paragraph", content: [{ type: "text", text: "MEMO3" }] },
-      { type: "paragraph", content: [{ type: "text", text: "여기에 세 번째 메모를 작성하세요." }] },
-    ],
-  },
 };
 
 export const DEFAULT_TITLES: Record<string, string> = {
   "memo1": "MEMO1",
+  "todo1": "TODO LIST",
   "memo2": "MEMO2",
-  "memo3": "MEMO3",
 };
 
 export const STORAGE_KEYS = {

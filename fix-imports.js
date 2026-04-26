@@ -10,7 +10,7 @@ const movedFiles = {
   'settings-button.tsx': 'components',
   'controls.tsx': 'components',
   'loading-overlay.tsx': 'components',
-  'dockview-memo.tsx': 'components',
+  'dockview.tsx': 'components',
   'markdown-editor.tsx': 'components',
   'loading-overlay-store.ts': 'store',
   'visual-toggle-store.ts': 'store',

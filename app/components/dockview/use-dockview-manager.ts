@@ -58,18 +58,18 @@ export function useDockviewManager(
               tabComponent: "default",
             });
             event.api.addPanel({
-              id: "memo2",
-              component: "editor",
-              title: DEFAULT_TITLES["memo2"],
+              id: "todo1",
+              component: "todoList",
+              title: DEFAULT_TITLES["todo1"],
               tabComponent: "default",
               position: { referencePanel: "memo1", direction: "right" },
             });
             event.api.addPanel({
-              id: "memo3",
+              id: "memo2",
               component: "editor",
-              title: DEFAULT_TITLES["memo3"],
+              title: DEFAULT_TITLES["memo2"],
               tabComponent: "default",
-              position: { referencePanel: "memo2", direction: "below" },
+              position: { referencePanel: "todo1", direction: "below" },
             });
           } catch (e) {
             console.error("Failed to create default layout", e);

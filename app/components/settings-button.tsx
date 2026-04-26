@@ -4,13 +4,13 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Icon } from "@iconify/react";
 import { useSettings, DEFAULT_SETTINGS } from "@/app/context/settings-context";
-import { useMemoStore } from "@/app/components/dockview-memo";
+import { useMemoStore } from "@/app/components/dockview";
 import { useAutoLockStore } from "@/app/store/auto-lock-store";
 import { showSecurePrompt } from "@/app/components/secure-prompt";
 import { toast } from "@/app/components/toast";
 import { memoDB } from "@/app/library/indexDB";
 import { DEFAULT_MEMOS, DEFAULT_TITLES } from "@/app/constants/default";
-import { encryptMemosText } from "@/app/components/dockview-memo/utils";
+import { encryptMemosText } from "@/app/components/dockview/utils";
 import { useLoadingOverlay } from "@/app/store/loading-overlay-store";
 
 export function SettingsPopover({ onClose }: { onClose: () => void }) {
@@ -204,7 +204,7 @@ function AutoLockToggle() {
             return;
           }
 
-          const { decryptMemosText } = await import("@/app/components/dockview-memo/utils");
+          const { decryptMemosText } = await import("@/app/components/dockview/utils");
           const decryptedMemos = decryptMemosText(data.memos, key);
           data.memos = decryptedMemos;
           data.isEncrypted = false;
@@ -234,12 +234,12 @@ function AutoLockToggle() {
       onClick={handleToggle}
       disabled={isDisabled}
       className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${autoLockEnabled
-          ? isDisabled
-            ? "bg-red-500/10 text-red-500 opacity-50 cursor-not-allowed"
-            : "bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 active:scale-95"
-          : isDisabled
-            ? "bg-slate-500/10 text-slate-400 opacity-50 cursor-not-allowed"
-            : "bg-slate-500/10 hover:bg-slate-500/20 text-slate-400 active:scale-95"
+        ? isDisabled
+          ? "bg-red-500/10 text-red-500 opacity-50 cursor-not-allowed"
+          : "bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 active:scale-95"
+        : isDisabled
+          ? "bg-slate-500/10 text-slate-400 opacity-50 cursor-not-allowed"
+          : "bg-slate-500/10 hover:bg-slate-500/20 text-slate-400 active:scale-95"
         }`}
     >
       <Icon

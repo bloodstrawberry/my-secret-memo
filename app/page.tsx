@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 
 // Dynamic import with SSR disabled — dockview uses browser-only DOM APIs
-const DockviewMemo = dynamic(() => import("@/app/components/dockview-memo"), { ssr: false });
+const DockviewMemo = dynamic(() => import("@/app/components/dockview"), { ssr: false });
 
 export default function Page() {
   return <DockviewMemo />;
