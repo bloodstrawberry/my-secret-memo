@@ -65,9 +65,9 @@ export function useDockviewManager(
               position: { referencePanel: "memo1", direction: "right" },
             });
             event.api.addPanel({
-              id: "memo2",
-              component: "editor",
-              title: DEFAULT_TITLES["memo2"],
+              id: "spreadsheet1",
+              component: "spreadsheet",
+              title: DEFAULT_TITLES["spreadsheet1"],
               tabComponent: "default",
               position: { referencePanel: "todo1", direction: "below" },
             });

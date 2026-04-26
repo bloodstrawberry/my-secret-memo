@@ -10,7 +10,7 @@ export function SpreadsheetPanel(props: IDockviewPanelProps) {
   const { memos, updateMemo } = useContext(MemoContext);
   const initialData = useRef(memos[id] || [{ name: "Sheet1", celldata: [] }]);
   const { toolbarVisibility } = useVisualToggleStore();
-  const showToolbar = toolbarVisibility;
+  const showToolbar = toolbarVisibility[id] !== false;
 
   const handleChange = useCallback((newData: any) => {
     // FortuneSheet mutates the 2D 'data' matrix but does NOT update 'celldata'.
