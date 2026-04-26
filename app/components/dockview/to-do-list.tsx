@@ -82,84 +82,89 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
   const completedCount = memoData.items.filter(i => i.completed).length;
 
   return (
-    <div className="h-full w-full bg-[var(--panel-bg)] p-6 flex flex-col overflow-hidden transition-colors duration-300 border border-[var(--border-color)]">
-      <div className="flex items-center justify-between mb-6">
-        <div className="text-xs font-medium text-slate-500 bg-slate-500/10 px-2 py-1 rounded-full">
-          {completedCount} / {total} Completed
+    <div className="h-full w-full bg-[var(--panel-bg)] flex flex-col overflow-hidden transition-colors duration-300 border border-[var(--border-color)]">
+      <div className="p-6 pb-0">
+        <div className="flex items-center justify-between mb-6">
+          <div className="text-xs font-medium text-slate-500 bg-slate-500/10 px-2 py-1 rounded-full whitespace-nowrap">
+            {completedCount} / {total} Completed
+          </div>
+        </div>
+
+        <div className="flex gap-2 mb-6">
+          <input
+            type="text"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="What needs to be done?"
+            className="flex-1 bg-transparent border-b border-[var(--border-color)] focus:border-cyan-500 pb-2 outline-none text-[var(--foreground)] transition-colors min-w-0"
+          />
+          <button
+            onClick={handleAdd}
+            disabled={!inputValue.trim()}
+            className="p-2 bg-cyan-500 text-white rounded-xl hover:bg-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-sm shadow-cyan-500/20 flex-shrink-0"
+          >
+            <Icon icon="mdi:plus" className="w-5 h-5" />
+          </button>
         </div>
       </div>
 
-      <div className="flex gap-2 mb-6">
-        <input
-          type="text"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="What needs to be done?"
-          className="flex-1 bg-transparent border-b border-[var(--border-color)] focus:border-cyan-500 pb-2 outline-none text-[var(--foreground)] transition-colors"
-        />
-        <button
-          onClick={handleAdd}
-          disabled={!inputValue.trim()}
-          className="p-2 bg-cyan-500 text-white rounded-xl hover:bg-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-sm shadow-cyan-500/20"
-        >
-          <Icon icon="mdi:plus" className="w-5 h-5" />
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto space-y-2 pr-2">
-        {memoData.items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-slate-400 opacity-60">
-            <Icon icon="mdi:check-all" className="w-12 h-12 mb-2" />
-            <p className="text-sm font-medium">No tasks yet.</p>
-          </div>
-        ) : (
-          memoData.items.map((item) => (
-            <div
-              key={item.id}
-              className={`group flex items-center gap-3 p-3 rounded-xl border transition-all ${item.completed
-                ? "bg-slate-500/5 border-transparent text-slate-400"
-                : "bg-[var(--background)] border-[var(--border-color)] hover:border-cyan-500/50 text-[var(--foreground)] shadow-sm"
-                }`}
-            >
-              <button
-                onClick={() => toggleCompleted(item.id)}
-                className={`flex-shrink-0 w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${item.completed
-                  ? "bg-emerald-500 border-emerald-500 text-white"
-                  : "border-slate-400 hover:border-cyan-500 text-transparent hover:text-cyan-500/30"
+      <div className="flex-1 overflow-auto custom-scrollbar">
+        <div className="px-6 pb-6 space-y-2">
+          {memoData.items.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-slate-400 opacity-60">
+              <Icon icon="mdi:check-all" className="w-12 h-12 mb-2" />
+              <p className="text-sm font-medium">No tasks yet.</p>
+            </div>
+          ) : (
+            memoData.items.map((item) => (
+              <div
+                key={item.id}
+                className={`group flex items-center gap-3 p-3 rounded-xl border transition-all flex-shrink-0 ${item.completed
+                  ? "bg-slate-500/5 border-transparent text-slate-400"
+                  : "bg-[var(--background)] border-[var(--border-color)] hover:border-cyan-500/50 text-[var(--foreground)] shadow-sm"
                   }`}
               >
-                <Icon icon="mdi:check" className="w-4 h-4" />
-              </button>
-
-              {editingId === item.id ? (
-                <input
-                  autoFocus
-                  type="text"
-                  value={editingText}
-                  onChange={(e) => setEditingText(e.target.value)}
-                  onBlur={handleEditSave}
-                  onKeyDown={handleEditKeyDown}
-                  className="flex-1 bg-transparent border-b border-cyan-500 outline-none text-sm text-[var(--foreground)]"
-                />
-              ) : (
-                <span
-                  onDoubleClick={() => handleEditStart(item)}
-                  className={`flex-1 break-words text-sm transition-all cursor-text select-none ${item.completed ? "line-through opacity-70" : ""}`}
+                <button
+                  onClick={() => toggleCompleted(item.id)}
+                  className={`flex-shrink-0 w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${item.completed
+                    ? "bg-emerald-500 border-emerald-500 text-white"
+                    : "border-slate-400 hover:border-cyan-500 text-transparent hover:text-cyan-500/30"
+                    }`}
                 >
-                  {item.text}
-                </span>
-              )}
+                  <Icon icon="mdi:check" className="w-4 h-4" />
+                </button>
 
-              <button
-                onClick={() => deleteItem(item.id)}
-                className="opacity-0 group-hover:opacity-100 p-1.5 text-red-500/70 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
-              >
-                <Icon icon="mdi:trash-can-outline" className="w-4 h-4" />
-              </button>
-            </div>
-          ))
-        )}
+                {editingId === item.id ? (
+                  <input
+                    autoFocus
+                    type="text"
+                    value={editingText}
+                    onChange={(e) => setEditingText(e.target.value)}
+                    onBlur={handleEditSave}
+                    onKeyDown={handleEditKeyDown}
+                    className="flex-1 bg-transparent border-b border-cyan-500 outline-none text-sm text-[var(--foreground)]"
+                  />
+                ) : (
+                  <span
+                    onDoubleClick={() => handleEditStart(item)}
+                    title={item.text}
+                    className={`flex-1 whitespace-nowrap overflow-hidden text-ellipsis text-sm transition-all cursor-text select-none ${item.completed ? "line-through opacity-70" : ""}`}
+                  >
+                    {item.text}
+                  </span>
+                )}
+
+                <button
+                  onClick={() => deleteItem(item.id)}
+                  className="flex-shrink-0 opacity-0 group-hover:opacity-100 p-1.5 text-red-500/70 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                >
+                  <Icon icon="mdi:trash-can-outline" className="w-4 h-4" />
+                </button>
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </div>
   );
