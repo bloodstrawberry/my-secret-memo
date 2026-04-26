@@ -82,9 +82,9 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     const hasAutoLockSession = autoLockEnabled && sessionKey;
 
     // We can only save if the app is NOT locked.
-    // If auto-lock is enabled but we don't have a session key, we are locked.
-    // If data is explicitly marked as encrypted but no session key is present, we are locked.
-    const isLocked = (isEncryptedRef.current || autoLockEnabled) && !sessionKey;
+    // AUTO LOCK is only for locking on initial entry — it should NOT block saves when unlocked.
+    // Only block saves if data is actually encrypted and no session key is available.
+    const isLocked = isEncryptedRef.current && !sessionKey;
 
     if (isLocked) {
       if (versionRef.current === lastSavedVersionRef.current) {
@@ -286,7 +286,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
 
       // Skip confirmation if the app is locked (edits aren't saved while locked anyway)
       const { autoLockEnabled, sessionKey } = useAutoLockStore.getState();
-      const isLocked = (isEncryptedRef.current || autoLockEnabled) && !sessionKey;
+      const isLocked = isEncryptedRef.current && !sessionKey;
       if (isLocked) return;
 
       if (versionRef.current !== lastSavedVersionRef.current || saveStatus === "saving") {
