@@ -17,6 +17,8 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
   const { memos, updateMemo } = useContext(MemoContext);
   const memoData: TodoData = memos[props.api.id] || { items: [] };
   const [inputValue, setInputValue] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState("");
 
   const updateItems = (newItems: TodoItem[]) => {
     updateMemo(props.api.id, { ...memoData, items: newItems });
@@ -36,6 +38,31 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       handleAdd();
+    }
+  };
+
+  const handleEditStart = (item: TodoItem) => {
+    setEditingId(item.id);
+    setEditingText(item.text);
+  };
+
+  const handleEditSave = () => {
+    if (!editingId) return;
+    const trimmed = editingText.trim();
+    if (trimmed) {
+      const newItems = memoData.items.map(item =>
+        item.id === editingId ? { ...item, text: trimmed } : item
+      );
+      updateItems(newItems);
+    }
+    setEditingId(null);
+  };
+
+  const handleEditKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleEditSave();
+    } else if (e.key === "Escape") {
+      setEditingId(null);
     }
   };
 
@@ -105,9 +132,24 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
                 <Icon icon="mdi:check" className="w-4 h-4" />
               </button>
 
-              <span className={`flex-1 break-words text-sm transition-all ${item.completed ? "line-through opacity-70" : ""}`}>
-                {item.text}
-              </span>
+              {editingId === item.id ? (
+                <input
+                  autoFocus
+                  type="text"
+                  value={editingText}
+                  onChange={(e) => setEditingText(e.target.value)}
+                  onBlur={handleEditSave}
+                  onKeyDown={handleEditKeyDown}
+                  className="flex-1 bg-transparent border-b border-cyan-500 outline-none text-sm text-[var(--foreground)]"
+                />
+              ) : (
+                <span
+                  onDoubleClick={() => handleEditStart(item)}
+                  className={`flex-1 break-words text-sm transition-all cursor-text select-none ${item.completed ? "line-through opacity-70" : ""}`}
+                >
+                  {item.text}
+                </span>
+              )}
 
               <button
                 onClick={() => deleteItem(item.id)}
