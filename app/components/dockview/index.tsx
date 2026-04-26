@@ -15,11 +15,13 @@ import { useDockviewManager } from "./use-dockview-manager";
 import { extractTextFromJSON } from "./utils";
 import LoadingOverlay from "@/app/components/loading-overlay";
 
+import { SpreadsheetPanel } from "./spreadsheet-panel";
 import { TodoListPanel } from "./to-do-list";
 
 const COMPONENTS = {
   editor: EditorPanel,
   todoList: TodoListPanel,
+  spreadsheet: SpreadsheetPanel,
 };
 
 const TAB_COMPONENTS = {

@@ -8,7 +8,7 @@ interface HeaderProps {
   toggleEncryption: () => void;
   saveStatus: "idle" | "saving" | "success";
   progressWidth: string;
-  addMemo: (type?: "memo" | "todo") => void;
+  addMemo: (type?: "memo" | "todo" | "spreadsheet") => void;
   downloadData: () => void;
   uploadData: (e: React.ChangeEvent<HTMLInputElement>) => void;
   fileInputRef: RefObject<HTMLInputElement | null>;
@@ -154,6 +154,16 @@ export function Header({
                 >
                   <Icon icon="mdi:format-list-checks" className="w-5 h-5 text-emerald-500 flex-shrink-0" />
                   <span className="whitespace-nowrap">New To-Do List</span>
+                </button>
+                <button
+                  onClick={() => {
+                    addMemo("spreadsheet");
+                    setShowAddMenu(false);
+                  }}
+                  className="flex items-center gap-4 px-4 py-2.5 rounded-xl hover:bg-cyan-500/10 text-[var(--foreground)] transition-colors text-sm font-medium text-left w-full"
+                >
+                  <Icon icon="mdi:google-spreadsheet" className="w-5 h-5 text-green-500 flex-shrink-0" />
+                  <span className="whitespace-nowrap">New Spreadsheets</span>
                 </button>
               </motion.div>
             )}

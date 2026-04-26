@@ -25,6 +25,9 @@ export const encryptMemosText = (memos: any, key: string) => {
     if (typeof node === "string") {
       return CryptoJS.AES.encrypt(node, key).toString();
     }
+    if (Array.isArray(node)) {
+      return node.map(processNode);
+    }
     if (typeof node !== "object") return node;
 
     const newNode = { ...node };
@@ -43,7 +46,24 @@ export const encryptMemosText = (memos: any, key: string) => {
 
   const result: any = {};
   for (const id in memos) {
-    result[id] = processNode(memos[id]);
+    if (id.startsWith("spreadsheet") && Array.isArray(memos[id])) {
+      result[id] = memos[id].map((sheet: any) => {
+        if (!sheet || typeof sheet !== "object") return sheet;
+        const newSheet = { ...sheet };
+        if (Array.isArray(newSheet.celldata)) {
+          newSheet.celldata = newSheet.celldata.map((cell: any) => {
+            if (!cell || typeof cell !== "object" || cell.v === undefined) return cell;
+            const newCell = { ...cell };
+            const strV = JSON.stringify(newCell.v);
+            newCell.v = CryptoJS.AES.encrypt(strV, key).toString();
+            return newCell;
+          });
+        }
+        return newSheet;
+      });
+    } else {
+      result[id] = processNode(memos[id]);
+    }
   }
   return result;
 };
@@ -60,6 +80,9 @@ export const decryptMemosText = (memos: any, key: string) => {
         }
       } catch (e) {}
       return node;
+    }
+    if (Array.isArray(node)) {
+      return node.map(processNode);
     }
     if (typeof node !== "object") return node;
 
@@ -85,7 +108,33 @@ export const decryptMemosText = (memos: any, key: string) => {
 
   const result: any = {};
   for (const id in memos) {
-    result[id] = processNode(memos[id]);
+    if (id.startsWith("spreadsheet") && Array.isArray(memos[id])) {
+      result[id] = memos[id].map((sheet: any) => {
+        if (!sheet || typeof sheet !== "object") return sheet;
+        const newSheet = { ...sheet };
+        if (Array.isArray(newSheet.celldata)) {
+          newSheet.celldata = newSheet.celldata.map((cell: any) => {
+            if (!cell || typeof cell !== "object" || typeof cell.v !== "string") return cell;
+            const newCell = { ...cell };
+            try {
+              const bytes = CryptoJS.AES.decrypt(cell.v, key);
+              if (bytes && typeof bytes.toString === "function") {
+                const dec = bytes.toString(CryptoJS.enc.Utf8);
+                if (dec) {
+                  newCell.v = JSON.parse(dec);
+                }
+              }
+            } catch (e) {
+              // decryption failed or not a JSON, just leave as is
+            }
+            return newCell;
+          });
+        }
+        return newSheet;
+      });
+    } else {
+      result[id] = processNode(memos[id]);
+    }
   }
   return result;
 };

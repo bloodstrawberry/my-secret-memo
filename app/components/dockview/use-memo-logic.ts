@@ -356,11 +356,11 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     });
   }, [persistState]);
 
-  const addMemo = useCallback((type: "memo" | "todo" = "memo") => {
+  const addMemo = useCallback((type: "memo" | "todo" | "spreadsheet" = "memo") => {
     if (!apiRef.current) return;
     const id = `${type}-${Date.now()}`;
-    const component = type === "memo" ? "editor" : "todoList";
-    const title = type === "memo" ? "New Memo" : "New To-Do List";
+    const component = type === "memo" ? "editor" : type === "todo" ? "todoList" : "spreadsheet";
+    const title = type === "memo" ? "New Memo" : type === "todo" ? "New To-Do List" : "New Spreadsheets";
 
     apiRef.current.addPanel({
       id: id,
@@ -371,12 +371,13 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
 
     const initialContent = type === "memo"
       ? { type: "doc", content: [{ type: "paragraph" }] }
-      : { items: [] };
+      : type === "todo" ? { items: [] }
+      : [{ name: "Sheet1", celldata: [], status: 1 }];
 
     setMemos(prev => ({ ...prev, [id]: initialContent }));
     setTitles(prev => ({ ...prev, [id]: title }));
     persistState();
-    toast.success(type === "memo" ? "새로운 메모가 생성되었습니다." : "새로운 To-Do List가 생성되었습니다.");
+    toast.success(type === "memo" ? "새로운 메모가 생성되었습니다." : type === "todo" ? "새로운 To-Do List가 생성되었습니다." : "새로운 스프레드시트가 생성되었습니다.");
   }, [persistState, apiRef]);
 
   const downloadData = useCallback(async () => {

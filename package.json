@@ -25,6 +25,7 @@
     "@fontsource/barlow": "^5.2.8",
     "@fontsource/noto-sans": "^5.2.10",
     "@fontsource/noto-sans-kr": "^5.2.9",
+    "@fortune-sheet/react": "^1.0.4",
     "@fullcalendar/core": "^6.1.20",
     "@fullcalendar/daygrid": "^6.1.20",
     "@fullcalendar/interaction": "^6.1.20",
