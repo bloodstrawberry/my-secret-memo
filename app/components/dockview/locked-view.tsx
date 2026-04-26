@@ -86,15 +86,6 @@ export const LockedView = ({ panelId }: LockedViewProps) => {
               Encrypted Session
             </span>
           </div>
-
-          {/* Subtle Progress bar decoration */}
-          <div className="w-32 h-0.5 bg-[var(--border-color)] rounded-full overflow-hidden mt-2">
-            <motion.div
-              animate={{ x: ["-100%", "100%"] }}
-              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-              className="w-1/2 h-full bg-[var(--dv-active-tab-text)] opacity-40"
-            />
-          </div>
         </div>
       </div>
 
