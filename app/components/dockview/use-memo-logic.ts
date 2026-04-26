@@ -119,8 +119,9 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
 
     try {
       const oldData = await memoDB.getItem<any>(STORAGE_KEY);
-      if (oldData && oldData.encryptedKey) {
-        currentState.encryptedKey = oldData.encryptedKey;
+      if (oldData) {
+        if (oldData.keyHash) currentState.keyHash = oldData.keyHash;
+        if (oldData.encryptedKey) currentState.encryptedKey = oldData.encryptedKey;
       }
 
       await memoDB.setItem(STORAGE_KEY, currentState);
@@ -616,7 +617,8 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
           data.memos = encryptMemosText(memosToEncrypt, key);
           data.isEncrypted = true;
           const { default: CryptoJS } = await import("crypto-js");
-          data.encryptedKey = CryptoJS.AES.encrypt(key, "my-secret-memo-salt").toString();
+          data.keyHash = CryptoJS.SHA256(key).toString();
+          delete data.encryptedKey;
           await memoDB.setItem(STORAGE_KEY, data);
           setIsEncrypted(true);
           isEncryptedRef.current = true;
@@ -638,8 +640,10 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
           const data = await memoDB.getItem<any>(STORAGE_KEY);
           if (data && data.isEncrypted && data.memos) {
             let isValid = false;
-            if (data.encryptedKey) {
-              const { default: CryptoJS } = await import("crypto-js");
+            const { default: CryptoJS } = await import("crypto-js");
+            if (data.keyHash) {
+              isValid = (CryptoJS.SHA256(key).toString() === data.keyHash);
+            } else if (data.encryptedKey) {
               const bytes = CryptoJS.AES.decrypt(data.encryptedKey, "my-secret-memo-salt");
               const decKey = bytes.toString(CryptoJS.enc.Utf8);
               isValid = (decKey === key);

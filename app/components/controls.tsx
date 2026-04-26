@@ -64,8 +64,8 @@ export const RightControls = (props: IDockviewHeaderActionsProps) => {
         if (hash === tabLocks[activePanelId]) {
           try {
             const decrypted = decryptSingleMemo(activePanelId, currentContent, val);
-            updateMemo(activePanelId, decrypted, true);
             toggleTabLock(activePanelId, false);
+            updateMemo(activePanelId, decrypted, true);
             toast.success("잠금이 해제되었습니다.");
           } catch (e) {
             toast.error("복호화에 실패했습니다.");
@@ -84,9 +84,9 @@ export const RightControls = (props: IDockviewHeaderActionsProps) => {
         const hash = CryptoJS.SHA256(val).toString();
         try {
           const encrypted = encryptSingleMemo(activePanelId, currentContent, val);
-          updateMemo(activePanelId, encrypted, true);
           setTabLock(activePanelId, hash, val);
           toggleTabLock(activePanelId, true);
+          updateMemo(activePanelId, encrypted, true);
           toast.success("탭이 암호화되어 숨겨졌습니다.");
         } catch (e) {
           toast.error("암호화에 실패했습니다.");

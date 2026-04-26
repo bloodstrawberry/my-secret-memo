@@ -2,14 +2,31 @@
 
 import { Toaster as SonnerToaster, toast as sonnerToast } from "sonner";
 import { Icon } from "@iconify/react";
+import * as React from "react";
 
 export const Toaster = () => {
+  const [theme, setTheme] = React.useState<"light" | "dark">("light");
+
+  React.useEffect(() => {
+    // Initial check
+    const isDark = document.documentElement.classList.contains("dark");
+    setTheme(isDark ? "dark" : "light");
+
+    // Observe changes
+    const observer = new MutationObserver(() => {
+      setTheme(document.documentElement.classList.contains("dark") ? "dark" : "light");
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <>
       <SonnerToaster
         position="top-center"
         expand={false}
         richColors
+        theme={theme}
         toastOptions={{
           className: "border border-[var(--border-color)] bg-[var(--panel-bg)] text-[var(--foreground)] rounded-xl shadow-2xl backdrop-blur-xl",
           style: {
@@ -82,6 +99,64 @@ export const Toaster = () => {
   );
 };
 
+const PromptContent = ({ 
+  onConfirm, 
+  onCancel, 
+  placeholder, 
+  confirmText, 
+  cancelText, 
+  type = "text",
+  icon = "material-symbols:link"
+}: { 
+  onConfirm: (val: string) => void; 
+  onCancel: () => void;
+  placeholder?: string;
+  confirmText?: string;
+  cancelText?: string;
+  type?: "text" | "password";
+  icon?: string;
+}) => {
+  const [value, setValue] = React.useState("");
+  
+  return (
+    <div className="flex flex-col gap-4 mt-3 w-full min-w-[300px]">
+      <div className="relative flex items-center group">
+        <Icon icon={icon} className="absolute left-3 w-4 h-4 text-cyan-500 opacity-60 group-focus-within:opacity-100 transition-opacity" />
+        <input
+          type={type}
+          autoFocus
+          placeholder={placeholder || (type === "password" ? "비밀번호를 입력하세요..." : "내용을 입력하세요...")}
+          className="w-full pl-9 pr-3 py-2.5 bg-slate-100 dark:bg-slate-800/50 border border-[var(--border-color)] rounded-xl outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500/50 text-sm transition-all shadow-inner text-slate-900 dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              onConfirm(value);
+            }
+            if (e.key === "Escape") {
+              onCancel();
+            }
+          }}
+        />
+      </div>
+      <div className="flex justify-end gap-2">
+        <button
+          onClick={onCancel}
+          className="px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-500/10 transition-colors text-slate-500"
+        >
+          {cancelText || "취소"}
+        </button>
+        <button
+          onClick={() => onConfirm(value)}
+          className="px-6 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 text-white shadow-lg shadow-cyan-500/20 hover:bg-cyan-600 transition-all active:scale-95"
+        >
+          {confirmText || "확인"}
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export const toast = {
   success: (message: string) => 
     sonnerToast.success(message, {
@@ -126,98 +201,41 @@ export const toast = {
   // Custom prompt toast
   prompt: (message: string, onConfirm: (value: string) => void, options?: { placeholder?: string; confirmText?: string; cancelText?: string }) => {
     sonnerToast.dismiss();
-    let currentValue = "";
     const toastId = sonnerToast(message, {
       duration: Infinity,
       description: (
-        <div className="flex flex-col gap-4 mt-3 w-full">
-          <div className="relative flex items-center group">
-            <Icon icon="material-symbols:link" className="absolute left-3 w-4 h-4 text-cyan-500 opacity-60 group-focus-within:opacity-100 transition-opacity" />
-            <input
-              type="text"
-              placeholder={options?.placeholder || "내용을 입력하세요..."}
-              className="w-full pl-9 pr-3 py-2.5 bg-slate-500/5 border border-[var(--border-color)] rounded-xl outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500/50 text-sm transition-all shadow-inner"
-              autoFocus
-              onChange={(e) => currentValue = e.target.value}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  onConfirm(currentValue);
-                  sonnerToast.dismiss(toastId);
-                }
-                if (e.key === "Escape") {
-                  sonnerToast.dismiss(toastId);
-                }
-              }}
-            />
-          </div>
-          <div className="flex justify-end gap-2">
-            <button
-              onClick={() => sonnerToast.dismiss(toastId)}
-              className="px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-500/10 transition-colors text-slate-500"
-            >
-              {options?.cancelText || "취소"}
-            </button>
-            <button
-              onClick={() => {
-                onConfirm(currentValue);
-                sonnerToast.dismiss(toastId);
-              }}
-              className="px-6 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 text-white shadow-lg shadow-cyan-500/20 hover:bg-cyan-600 transition-all active:scale-95"
-            >
-              {options?.confirmText || "확인"}
-            </button>
-          </div>
-        </div>
+        <PromptContent 
+          placeholder={options?.placeholder}
+          confirmText={options?.confirmText}
+          cancelText={options?.cancelText}
+          onConfirm={(val) => {
+            onConfirm(val);
+            sonnerToast.dismiss(toastId);
+          }}
+          onCancel={() => sonnerToast.dismiss(toastId)}
+        />
       ),
-      // We use our own buttons in description for full layout control
       icon: null, 
     });
   },
   // Custom password prompt toast
   passwordPrompt: (message: string, onConfirm: (value: string) => void, options?: { placeholder?: string; confirmText?: string; cancelText?: string }) => {
     sonnerToast.dismiss();
-    let currentValue = "";
     const toastId = sonnerToast(message, {
       duration: Infinity,
       description: (
-        <div className="flex flex-col gap-4 mt-3 w-full">
-          <div className="relative flex items-center group">
-            <Icon icon="material-symbols:lock-outline" className="absolute left-3 w-4 h-4 text-cyan-500 opacity-60 group-focus-within:opacity-100 transition-opacity" />
-            <input
-              type="password"
-              placeholder={options?.placeholder || "비밀번호를 입력하세요..."}
-              className="w-full pl-9 pr-3 py-2.5 bg-slate-500/5 border border-[var(--border-color)] rounded-xl outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500/50 text-sm transition-all shadow-inner"
-              autoFocus
-              onChange={(e) => currentValue = e.target.value}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  onConfirm(currentValue);
-                  sonnerToast.dismiss(toastId);
-                }
-                if (e.key === "Escape") {
-                  sonnerToast.dismiss(toastId);
-                }
-              }}
-            />
-          </div>
-          <div className="flex justify-end gap-2">
-            <button
-              onClick={() => sonnerToast.dismiss(toastId)}
-              className="px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-500/10 transition-colors text-slate-500"
-            >
-              {options?.cancelText || "취소"}
-            </button>
-            <button
-              onClick={() => {
-                onConfirm(currentValue);
-                sonnerToast.dismiss(toastId);
-              }}
-              className="px-6 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 text-white shadow-lg shadow-cyan-500/20 hover:bg-cyan-600 transition-all active:scale-95"
-            >
-              {options?.confirmText || "확인"}
-            </button>
-          </div>
-        </div>
+        <PromptContent 
+          type="password"
+          icon="material-symbols:lock-outline"
+          placeholder={options?.placeholder}
+          confirmText={options?.confirmText}
+          cancelText={options?.cancelText}
+          onConfirm={(val) => {
+            onConfirm(val);
+            sonnerToast.dismiss(toastId);
+          }}
+          onCancel={() => sonnerToast.dismiss(toastId)}
+        />
       ),
       icon: null,
     });
