@@ -21,7 +21,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
   const [progressWidth, setProgressWidth] = useState("0%");
   const [isEncrypted, setIsEncrypted] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
-  
+
   const skipPersistRef = useRef(false);
   const statusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSaveTimeRef = useRef<number>(Date.now());
@@ -271,7 +271,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
   const resetData = useCallback(() => {
     toast.confirm("모든 메모 데이터와 설정을 초기화하시겠습니까?", async () => {
       skipPersistRef.current = true;
-      
+
       // Clear auto-lock store states after confirmation
       const { setSessionKey, setAutoLockEnabled, setKeyError } = useAutoLockStore.getState();
       setSessionKey(null);
@@ -287,19 +287,27 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     });
   }, []);
 
-  const addMemo = useCallback(() => {
+  const addMemo = useCallback((type: "memo" | "todo" = "memo") => {
     if (!apiRef.current) return;
-    const id = `memo-${Date.now()}`;
+    const id = `${type}-${Date.now()}`;
+    const component = type === "memo" ? "editor" : "todoList";
+    const title = type === "memo" ? "New Memo" : "New To-Do List";
+
     apiRef.current.addPanel({
       id: id,
-      component: "editor",
-      title: `New Memo`,
+      component: component,
+      title: title,
       tabComponent: "default",
     });
-    setMemos(prev => ({ ...prev, [id]: { type: "doc", content: [{ type: "paragraph" }] } }));
-    setTitles(prev => ({ ...prev, [id]: "New Memo" }));
+
+    const initialContent = type === "memo"
+      ? { type: "doc", content: [{ type: "paragraph" }] }
+      : { items: [] };
+
+    setMemos(prev => ({ ...prev, [id]: initialContent }));
+    setTitles(prev => ({ ...prev, [id]: title }));
     persistState();
-    toast.success("새로운 메모가 생성되었습니다.");
+    toast.success(type === "memo" ? "새로운 메모가 생성되었습니다." : "새로운 To-Do List가 생성되었습니다.");
   }, [persistState, apiRef]);
 
   const downloadData = useCallback(async () => {

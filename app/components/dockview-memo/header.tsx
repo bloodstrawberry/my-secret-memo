@@ -1,4 +1,5 @@
-import { RefObject } from "react";
+import { RefObject, useState, useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import SettingsButton from "@/app/components/settings-button";
 import { useAutoLockStore } from "@/app/store/auto-lock-store";
 import { Icon } from "@iconify/react";
@@ -7,7 +8,7 @@ interface HeaderProps {
   toggleEncryption: () => void;
   saveStatus: "idle" | "saving" | "success";
   progressWidth: string;
-  addMemo: () => void;
+  addMemo: (type?: "memo" | "todo") => void;
   downloadData: () => void;
   uploadData: (e: React.ChangeEvent<HTMLInputElement>) => void;
   fileInputRef: RefObject<HTMLInputElement | null>;
@@ -28,6 +29,18 @@ export function Header({
   setIsDarkMode
 }: HeaderProps) {
   const keyError = useAutoLockStore(state => state.keyError);
+  const [showAddMenu, setShowAddMenu] = useState(false);
+  const addMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (addMenuRef.current && !addMenuRef.current.contains(event.target as Node)) {
+        setShowAddMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   return (
     <header className="px-6 py-4 flex justify-between items-center bg-[var(--header-bg)] border-b border-[var(--border-color)] backdrop-blur-xl z-10 shrink-0 transition-all duration-300">
@@ -47,8 +60,8 @@ export function Header({
               onClick={toggleEncryption}
               title={isEncrypted ? "암호화 해제" : "암호화 잠금"}
               className={`ml-0 p-1.5 rounded-lg transition-all flex items-center justify-center ${isEncrypted
-                  ? "bg-red-500/10 text-red-500 hover:bg-red-500/20"
-                  : "bg-slate-500/10 text-slate-400 hover:bg-slate-500/20"
+                ? "bg-red-500/10 text-red-500 hover:bg-red-500/20"
+                : "bg-slate-500/10 text-slate-400 hover:bg-slate-500/20"
                 }`}
             >
               {isEncrypted ? (
@@ -101,15 +114,52 @@ export function Header({
       </div>
 
       <div className="flex items-center gap-4">
-        <button
-          onClick={addMemo}
-          title="New Memo"
-          className="flex items-center justify-center p-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white transition-all shadow-lg shadow-cyan-500/20 active:scale-95"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-        </button>
+        <div className="relative" ref={addMenuRef}>
+          <button
+            onClick={() => setShowAddMenu(!showAddMenu)}
+            title="Add Item"
+            className="flex items-center justify-center gap-1 px-3 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white transition-all shadow-lg shadow-cyan-500/20 active:scale-95 font-bold text-xs"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            <span className="hidden sm:inline">Add Item</span>
+            <Icon icon="mdi:chevron-down" className={`w-4 h-4 transition-transform ${showAddMenu ? "rotate-180" : ""}`} />
+          </button>
+
+          <AnimatePresence>
+            {showAddMenu && (
+              <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                style={{ minWidth: 220 }}
+                className="absolute top-full right-0 mt-2 bg-[var(--panel-bg)] border border-[var(--border-color)] rounded-2xl shadow-2xl z-50 p-2 backdrop-blur-xl flex flex-col gap-1"
+              >
+                <button
+                  onClick={() => {
+                    addMemo("memo");
+                    setShowAddMenu(false);
+                  }}
+                  className="flex items-center gap-4 px-4 py-2.5 rounded-xl hover:bg-cyan-500/10 text-[var(--foreground)] transition-colors text-sm font-medium text-left w-full"
+                >
+                  <Icon icon="mdi:file-document-outline" className="w-5 h-5 text-cyan-500 flex-shrink-0" />
+                  <span className="whitespace-nowrap">New Memo</span>
+                </button>
+                <button
+                  onClick={() => {
+                    addMemo("todo");
+                    setShowAddMenu(false);
+                  }}
+                  className="flex items-center gap-4 px-4 py-2.5 rounded-xl hover:bg-cyan-500/10 text-[var(--foreground)] transition-colors text-sm font-medium text-left w-full"
+                >
+                  <Icon icon="mdi:format-list-checks" className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                  <span className="whitespace-nowrap">New To-Do List</span>
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         <button
           onClick={downloadData}

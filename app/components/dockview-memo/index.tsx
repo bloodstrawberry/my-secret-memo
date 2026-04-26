@@ -15,8 +15,11 @@ import { useDockviewManager } from "./use-dockview-manager";
 import { extractTextFromJSON } from "./utils";
 import LoadingOverlay from "@/app/components/loading-overlay";
 
+import { TodoListPanel } from "./to-do-list";
+
 const COMPONENTS = {
   editor: EditorPanel,
+  todoList: TodoListPanel,
 };
 
 const TAB_COMPONENTS = {

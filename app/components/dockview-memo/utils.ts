@@ -9,6 +9,9 @@ export function extractTextFromJSON(node: any): string {
   if (node.content) {
     text += node.content.map((child: any) => extractTextFromJSON(child)).join("");
   }
+  if (node.items) {
+    text += node.items.map((item: any) => item.text || "").join("\n") + "\n";
+  }
   // Add newline between block-level nodes for proper word separation
   if (node.type && ["paragraph", "heading", "bulletList", "orderedList", "listItem", "taskList", "taskItem", "blockquote", "codeBlock", "hardBreak"].includes(node.type)) {
     text += "\n";
@@ -31,6 +34,9 @@ export const encryptMemosText = (memos: any, key: string) => {
 
     if (Array.isArray(newNode.content)) {
       newNode.content = newNode.content.map(processNode);
+    }
+    if (Array.isArray(newNode.items)) {
+      newNode.items = newNode.items.map(processNode);
     }
     return newNode;
   };
@@ -70,6 +76,9 @@ export const decryptMemosText = (memos: any, key: string) => {
 
     if (Array.isArray(newNode.content)) {
       newNode.content = newNode.content.map(processNode);
+    }
+    if (Array.isArray(newNode.items)) {
+      newNode.items = newNode.items.map(processNode);
     }
     return newNode;
   };
