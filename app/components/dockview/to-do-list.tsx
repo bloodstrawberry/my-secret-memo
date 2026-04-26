@@ -2,6 +2,7 @@ import { useContext, useState, memo, KeyboardEvent } from "react";
 import { IDockviewPanelProps } from "dockview";
 import { Icon } from "@iconify/react";
 import { MemoContext } from "./context";
+import { useSettings } from "@/app/context/settings-context";
 
 interface TodoItem {
   id: string;
@@ -15,10 +16,12 @@ interface TodoData {
 
 export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelProps) {
   const { memos, updateMemo } = useContext(MemoContext);
+  const { settings } = useSettings();
   const memoData: TodoData = memos[props.api.id] || { items: [] };
   const [inputValue, setInputValue] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
+
 
   const updateItems = (newItems: TodoItem[]) => {
     updateMemo(props.api.id, { ...memoData, items: newItems });
@@ -82,7 +85,10 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
   const completedCount = memoData.items.filter(i => i.completed).length;
 
   return (
-    <div className="h-full w-full bg-[var(--panel-bg)] flex flex-col overflow-hidden transition-colors duration-300 border border-[var(--border-color)]">
+    <div
+      className="h-full w-full bg-[var(--panel-bg)] flex flex-col overflow-hidden transition-colors duration-300 border border-[var(--border-color)]"
+      style={{ fontFamily: settings.fontFamily }}
+    >
       <div className="p-6 pb-0">
         <div className="flex items-center justify-between mb-6">
           <div className="text-xs font-medium text-slate-500 bg-slate-500/10 px-2 py-1 rounded-full whitespace-nowrap">
