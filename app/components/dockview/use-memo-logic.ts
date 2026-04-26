@@ -274,6 +274,19 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     }
   }, [isDarkMode, isMounted]);
 
+  // Prevent accidental reload/close with unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (skipPersistRef.current) return;
+      if (versionRef.current !== lastSavedVersionRef.current || saveStatus === "saving") {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [saveStatus]);
+
   const updateMemo = useCallback((id: string, val: any, immediate = false) => {
     // Block writes in read-only history mode
     if (useHistoryStore.getState().isReadOnly) return;
@@ -383,6 +396,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
         persistState({ memos: nextMemos, titles: nextTitles });
         localStorage.removeItem(STORAGE_KEYS.LAYOUT);
         toast.success("메모장이 초기화되었습니다.");
+        skipPersistRef.current = true;
         setTimeout(() => window.location.reload(), 500);
         return;
       }
@@ -410,6 +424,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
         persistState({ memos: nextMemos, titles: nextTitles });
         localStorage.removeItem(STORAGE_KEYS.LAYOUT);
         toast.success("To-Do List가 초기화되었습니다.");
+        skipPersistRef.current = true;
         setTimeout(() => window.location.reload(), 500);
         return;
       }
@@ -582,7 +597,6 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
           : "데이터를 성공적으로 업로드했습니다.";
         toast.success(msg);
         setTimeout(() => {
-          skipPersistRef.current = false;
           window.location.reload();
         }, 1000);
       } catch (err) {
