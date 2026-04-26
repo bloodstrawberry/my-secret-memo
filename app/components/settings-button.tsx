@@ -17,7 +17,7 @@ import { useEffect, useRef } from "react";
 const FONT_OPTIONS = [
   { name: "Pretendard", value: "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif" },
   { name: "Noto Sans KR", value: "'Noto Sans KR', sans-serif" },
-  { name: "전소민체", value: "'JeonSoMin', sans-serif" },
+  { name: "전소민체", value: "var(--font-jeonsomin), sans-serif" },
   { name: "Consolas (Mono)", value: "'Consolas', 'Monaco', monospace" },
   { name: "Open Sans", value: "var(--font-open-sans), sans-serif" },
   { name: "Montserrat", value: "var(--font-montserrat), sans-serif" },

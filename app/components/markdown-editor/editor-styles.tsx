@@ -7,7 +7,7 @@ interface EditorStylesProps {
 export function EditorStyles({ settings }: EditorStylesProps) {
   // Clamp line-height to a minimum of 1.0 to prevent text overlap on word wrap
   const safeLineHeight = Math.max(1.0, parseFloat(settings.lineHeight) || 1.6);
-  const isJeonSoMin = settings.fontFamily.includes("JeonSoMin");
+  const isJeonSoMin = settings.fontFamily.toLowerCase().includes("jeonsomin");
   const baseFontSize = parseInt(settings.fontSize) || 16;
   const adjustedFontSize = isJeonSoMin ? `${baseFontSize + 2}px` : settings.fontSize;
 

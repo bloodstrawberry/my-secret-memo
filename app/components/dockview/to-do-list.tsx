@@ -236,7 +236,7 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
   const total = memoData.items.length;
   const completedCount = memoData.items.filter(i => i.completed).length;
 
-  const isJeonSoMin = settings.fontFamily.includes("JeonSoMin");
+  const isJeonSoMin = settings.fontFamily.toLowerCase().includes("jeonsomin");
 
   return (
     <div
