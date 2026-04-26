@@ -4,10 +4,11 @@ import MarkdownEditor from "@/app/components/markdown-editor";
 import { MemoContext } from "./context";
 import { useVisualToggleStore } from "@/app/store/visual-toggle-store";
 import { LockedView } from "./locked-view";
+import { DEFAULT_MEMOS } from "@/app/constants/default";
 
 export const EditorPanel = memo(function EditorPanel(props: IDockviewPanelProps) {
-  const { memos, isReadOnly, updateMemo } = useContext(MemoContext);
-  const memo = memos[props.api.id] || "";
+  const { memos, isReadOnly, updateMemo, isEncrypted } = useContext(MemoContext);
+  const memo = (isEncrypted && !memos[props.api.id]) ? DEFAULT_MEMOS.memo1 : (memos[props.api.id] || "");
   const { lockedTabs } = useVisualToggleStore();
   const isLocked = lockedTabs[props.api.id] === true;
 

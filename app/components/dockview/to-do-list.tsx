@@ -6,6 +6,7 @@ import { toast } from "@/app/components/toast";
 import { useSettings } from "@/app/context/settings-context";
 import { useVisualToggleStore } from "@/app/store/visual-toggle-store";
 import { LockedView } from "./locked-view";
+import { DEFAULT_MEMOS } from "@/app/constants/default";
 import {
   DndContext,
   closestCenter,
@@ -138,11 +139,11 @@ const SortableTodoItem = memo(function SortableTodoItem({
 });
 
 export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelProps) {
-  const { memos, isReadOnly, updateMemo } = useContext(MemoContext);
+  const { memos, isReadOnly, updateMemo, isEncrypted } = useContext(MemoContext);
   const { settings } = useSettings();
   const { lockedTabs } = useVisualToggleStore();
   const isLocked = lockedTabs[props.api.id] === true;
-  const memoData: TodoData = memos[props.api.id] || { items: [] };
+  const memoData: TodoData = (isEncrypted && !memos[props.api.id]) ? DEFAULT_MEMOS.todo1 : (memos[props.api.id] || { items: [] });
   const [inputValue, setInputValue] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");

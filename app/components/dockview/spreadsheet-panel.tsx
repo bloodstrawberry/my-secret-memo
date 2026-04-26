@@ -5,10 +5,11 @@ import { Workbook } from "@fortune-sheet/react";
 import "@fortune-sheet/react/dist/index.css";
 import { useVisualToggleStore } from "@/app/store/visual-toggle-store";
 import { LockedView } from "./locked-view";
+import { DEFAULT_MEMOS } from "@/app/constants/default";
 
 export function SpreadsheetPanel(props: IDockviewPanelProps) {
   const id = props.api.id;
-  const { memos, isReadOnly, updateMemo } = useContext(MemoContext);
+  const { memos, isReadOnly, updateMemo, isEncrypted } = useContext(MemoContext);
   const { toolbarVisibility, lockedTabs } = useVisualToggleStore();
   const showToolbar = toolbarVisibility[id] !== false;
   const isLocked = lockedTabs[id] === true;
@@ -19,7 +20,12 @@ export function SpreadsheetPanel(props: IDockviewPanelProps) {
   // Remount key: incremented when memo data changes externally (e.g., after decrypt/unlock)
   // This forces the Workbook to reinitialize with fresh data.
   const [remountKey, setRemountKey] = useState(0);
-  const initialData = useRef(memos[id] || [{ name: "Sheet1", celldata: [] }]);
+  
+  const getInitialData = () => {
+    return (isEncrypted && !memos[id]) ? DEFAULT_MEMOS.spreadsheet1 : (memos[id] || [{ name: "Sheet1", celldata: [] }]);
+  };
+  
+  const initialData = useRef(getInitialData());
 
   // Detect external data changes (decrypt, upload, etc.) and reinitialize Workbook
   useEffect(() => {
@@ -27,12 +33,12 @@ export function SpreadsheetPanel(props: IDockviewPanelProps) {
       isLocalChangeRef.current = false;
       return;
     }
-    const currentData = memos[id];
+    const currentData = getInitialData();
     if (currentData && currentData !== initialData.current) {
       initialData.current = currentData;
       setRemountKey(prev => prev + 1);
     }
-  }, [memos[id]]);
+  }, [memos[id], isEncrypted]);
 
   const handleChange = useCallback((newData: any) => {
     // Block writes in read-only mode

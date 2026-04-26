@@ -2,8 +2,94 @@ export const DEFAULT_MEMOS: Record<string, any> = {
   "memo1": {
     type: "doc",
     content: [
-      { type: "paragraph", content: [{ type: "text", text: "MEMO1" }] },
-      { type: "paragraph", content: [{ type: "text", text: "여기에 첫 번째 메모를 작성하세요." }] },
+      {
+        type: "heading",
+        attrs: { level: 1 },
+        content: [{ type: "text", text: "Markdown Guide & Examples" }]
+      },
+      {
+        type: "paragraph",
+        content: [
+          { type: "text", text: "This is a demonstration of the " },
+          { type: "text", text: "Markdown", marks: [{ type: "bold" }] },
+          { type: "text", text: " capabilities in " },
+          { type: "text", text: "Next Notepad", marks: [{ type: "italic" }, { type: "underline" }] },
+          { type: "text", text: "." }
+        ]
+      },
+      {
+        type: "heading",
+        attrs: { level: 2 },
+        content: [{ type: "text", text: "1. Text Styling" }]
+      },
+      {
+        type: "paragraph",
+        content: [
+          { type: "text", text: "You can use " },
+          { type: "text", text: "bold", marks: [{ type: "bold" }] },
+          { type: "text", text: ", " },
+          { type: "text", text: "italic", marks: [{ type: "italic" }] },
+          { type: "text", text: ", " },
+          { type: "text", text: "strikethrough", marks: [{ type: "strike" }] },
+          { type: "text", text: ", and " },
+          { type: "text", text: "highlighting", marks: [{ type: "highlight", attrs: { color: "#ffcc00" } }] },
+          { type: "text", text: " to emphasize your content." }
+        ]
+      },
+      {
+        type: "heading",
+        attrs: { level: 2 },
+        content: [{ type: "text", text: "2. Lists" }]
+      },
+      {
+        type: "bulletList",
+        content: [
+          { type: "listItem", content: [{ type: "paragraph", content: [{ type: "text", text: "Bullet list item 1" }] }] },
+          { type: "listItem", content: [{ type: "paragraph", content: [{ type: "text", text: "Bullet list item 2" }] }] }
+        ]
+      },
+      {
+        type: "orderedList",
+        attrs: { start: 1 },
+        content: [
+          { type: "listItem", content: [{ type: "paragraph", content: [{ type: "text", text: "First item" }] }] },
+          { type: "listItem", content: [{ type: "paragraph", content: [{ type: "text", text: "Second item" }] }] }
+        ]
+      },
+      {
+        type: "heading",
+        attrs: { level: 2 },
+        content: [{ type: "text", text: "3. Task List" }]
+      },
+      {
+        type: "taskList",
+        content: [
+          { type: "taskItem", attrs: { checked: true }, content: [{ type: "paragraph", content: [{ type: "text", text: "Completed task" }] }] },
+          { type: "taskItem", attrs: { checked: false }, content: [{ type: "paragraph", content: [{ type: "text", text: "Pending task" }] }] }
+        ]
+      },
+      {
+        type: "heading",
+        attrs: { level: 2 },
+        content: [{ type: "text", text: "4. Code & Blocks" }]
+      },
+      {
+        type: "codeBlock",
+        attrs: { language: "javascript" },
+        content: [{ type: "text", text: "function hello() {\n  console.log(\"Hello, world!\");\n}" }]
+      },
+      {
+        type: "blockquote",
+        content: [
+          { type: "paragraph", content: [{ type: "text", text: "“The best way to predict the future is to invent it.”" }] },
+          { type: "paragraph", content: [{ type: "text", text: "— Alan Kay" }] }
+        ]
+      },
+      { type: "horizontalRule" },
+      {
+        type: "paragraph",
+        content: [{ type: "text", text: "Happy writing!" }]
+      }
     ],
   },
   "todo1": {
@@ -32,7 +118,7 @@ export const DEFAULT_MEMOS: Record<string, any> = {
 };
 
 export const DEFAULT_TITLES: Record<string, string> = {
-  "memo1": "MEMO1",
+  "memo1": "MEMO",
   "todo1": "TO-DO LIST",
   "spreadsheet1": "SPREADSHEET",
 };
