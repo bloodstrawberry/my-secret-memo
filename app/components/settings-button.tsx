@@ -3,15 +3,15 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Icon } from "@iconify/react";
-import { useSettings, DEFAULT_SETTINGS } from "./settings-context";
-import { useMemoStore } from "./dockview-memo";
-import { useAutoLockStore } from "./auto-lock-store";
-import { showSecurePrompt } from "./secure-prompt";
-import { toast } from "./toast";
-import { memoDB } from "./library/indexDB";
-import { DEFAULT_MEMOS, DEFAULT_TITLES } from "./default";
-import { encryptMemosText } from "./components/dockview-memo/utils";
-import { useLoadingOverlay } from "./loading-overlay-store";
+import { useSettings, DEFAULT_SETTINGS } from "@/app/context/settings-context";
+import { useMemoStore } from "@/app/components/dockview-memo";
+import { useAutoLockStore } from "@/app/store/auto-lock-store";
+import { showSecurePrompt } from "@/app/components/secure-prompt";
+import { toast } from "@/app/components/toast";
+import { memoDB } from "@/app/library/indexDB";
+import { DEFAULT_MEMOS, DEFAULT_TITLES } from "@/app/constants/default";
+import { encryptMemosText } from "@/app/components/dockview-memo/utils";
+import { useLoadingOverlay } from "@/app/store/loading-overlay-store";
 
 export function SettingsPopover({ onClose }: { onClose: () => void }) {
   const { settings, updateSettings } = useSettings();
@@ -179,7 +179,7 @@ function AutoLockToggle() {
         const STORAGE_KEY = "my-secret-key";
         const data = await memoDB.getItem<any>(STORAGE_KEY);
         if (data && data.isEncrypted && data.memos) {
-          const { decryptMemosText } = await import("./components/dockview-memo/utils");
+          const { decryptMemosText } = await import("@/app/components/dockview-memo/utils");
           const decryptedMemos = decryptMemosText(data.memos, key);
           data.memos = decryptedMemos;
           data.isEncrypted = false;

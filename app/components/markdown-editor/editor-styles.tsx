@@ -1,4 +1,4 @@
-import { EditorSettings } from "../../settings-context";
+import { EditorSettings } from "@/app/context/settings-context";
 
 interface EditorStylesProps {
   settings: EditorSettings;

@@ -1,5 +1,5 @@
 import { RefObject } from "react";
-import SettingsButton from "../../settings-button";
+import SettingsButton from "@/app/components/settings-button";
 
 interface HeaderProps {
   isEncrypted: boolean;

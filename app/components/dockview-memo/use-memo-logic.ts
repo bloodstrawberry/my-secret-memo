@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { debounce } from "es-toolkit";
-import { toast } from "../../toast";
-import { showSecurePrompt } from "../../secure-prompt";
-import { DEFAULT_MEMOS, DEFAULT_TITLES, STORAGE_KEYS } from "../../default";
+import { toast } from "@/app/components/toast";
+import { showSecurePrompt } from "@/app/components/secure-prompt";
+import { DEFAULT_MEMOS, DEFAULT_TITLES, STORAGE_KEYS } from "@/app/constants/default";
 import { memoDB } from "../../library/indexDB";
-import { useVisualToggleStore } from "../../visual-toggle-store";
-import { useAutoLockStore } from "../../auto-lock-store";
-import { useLoadingOverlay } from "../../loading-overlay-store";
-import { EditorSettings, DEFAULT_SETTINGS } from "../../settings-context";
+import { useVisualToggleStore } from "@/app/store/visual-toggle-store";
+import { useAutoLockStore } from "@/app/store/auto-lock-store";
+import { useLoadingOverlay } from "@/app/store/loading-overlay-store";
+import { EditorSettings, DEFAULT_SETTINGS } from "@/app/context/settings-context";
 import { encryptMemosText, decryptMemosText } from "./utils";
 import { DockviewReadyEvent } from "dockview";
 

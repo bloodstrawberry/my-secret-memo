@@ -1,7 +1,7 @@
 import { Editor } from "@tiptap/react";
 import { RefObject } from "react";
 import { ToolbarButton, ToolbarDivider } from "./toolbar-button";
-import { toast } from "../../toast";
+import { toast } from "@/app/components/toast";
 
 interface ToolbarProps {
   editor: Editor;

@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext, memo } from "react";
 import { IDockviewPanelHeaderProps } from "dockview";
 import { MemoContext } from "./context";
-import { toast } from "../../toast";
+import { toast } from "@/app/components/toast";
 
 export const CustomTab = memo(function CustomTab(props: IDockviewPanelHeaderProps) {
   const { updateTitle } = useContext(MemoContext);

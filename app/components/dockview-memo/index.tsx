@@ -3,8 +3,8 @@
 import { useRef, useMemo } from "react";
 import { DockviewReact, DockviewReadyEvent, themeDark, themeLight } from "dockview";
 import "dockview/dist/styles/dockview.css";
-import { SettingsContext } from "../../settings-context";
-import { RightControls } from "../../controls";
+import { SettingsContext } from "@/app/context/settings-context";
+import { RightControls } from "@/app/components/controls";
 import { MemoContext } from "./context";
 import { CustomTab } from "./custom-tab";
 import { EditorPanel } from "./editor-panel";
@@ -13,7 +13,7 @@ import { Footer } from "./footer";
 import { useMemoLogic } from "./use-memo-logic";
 import { useDockviewManager } from "./use-dockview-manager";
 import { extractTextFromJSON } from "./utils";
-import LoadingOverlay from "../../loading-overlay";
+import LoadingOverlay from "@/app/components/loading-overlay";
 
 const COMPONENTS = {
   editor: EditorPanel,

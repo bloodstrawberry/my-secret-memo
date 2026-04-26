@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { DockviewReadyEvent } from "dockview";
 import { memoDB } from "../../library/indexDB";
-import { DEFAULT_TITLES, STORAGE_KEYS } from "../../default";
+import { DEFAULT_TITLES, STORAGE_KEYS } from "@/app/constants/default";
 
 export function useDockviewManager(
   apiRef: React.MutableRefObject<DockviewReadyEvent["api"] | null>,

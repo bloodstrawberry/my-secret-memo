@@ -13,7 +13,7 @@ import { TaskItem } from "@tiptap/extension-task-item";
 import { Markdown } from "tiptap-markdown";
 import { debounce } from "es-toolkit";
 import { EditorJSON, MarkdownEditorProps, EDITOR_PADDING } from "./types";
-import { useSettings } from "../../settings-context";
+import { useSettings } from "@/app/context/settings-context";
 
 export function useEditorConfig({ value, onChange, onBlur, placeholder }: MarkdownEditorProps) {
   const [isMounted, setIsMounted] = useState(false);

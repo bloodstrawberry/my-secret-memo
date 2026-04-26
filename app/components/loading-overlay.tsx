@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { useLoadingOverlay } from "./loading-overlay-store";
+import { useLoadingOverlay } from "@/app/store/loading-overlay-store";
 
 export default function LoadingOverlay() {
   const { isLoading, message } = useLoadingOverlay();

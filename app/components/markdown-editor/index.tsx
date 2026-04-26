@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import { EditorContent } from "@tiptap/react";
-import { useVisualToggleStore } from "../../visual-toggle-store";
+import { useVisualToggleStore } from "@/app/store/visual-toggle-store";
 import { MarkdownEditorProps } from "./types";
 import { Toolbar } from "./toolbar";
 import { EditorStyles } from "./editor-styles";
