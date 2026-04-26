@@ -14,6 +14,7 @@
 }
 
 :root {
+  color-scheme: light;
   --background: #ffffff;
   --foreground: #0f172a;
   --header-bg: rgba(255, 255, 255, 0.98);
@@ -36,6 +37,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --background: #060912;
   --foreground: #f8fafc;
   --header-bg: rgba(11, 15, 26, 0.8);
@@ -55,11 +57,30 @@
   --hr-color: #ffffff;
 }
 
+.light {
+  color-scheme: light !important;
+  --background: #ffffff !important;
+  --foreground: #0f172a !important;
+  --border-color: rgba(0, 0, 0, 0.06) !important;
+  color: #0f172a !important;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
   transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* Force dark theme for native select and options in dark mode */
+.dark select,
+.dark select option {
+  background-color: #0b0f1a;
+  color: #f8fafc;
+}
+
+.dark select:focus {
+  background-color: #0b0f1a;
 }
 
 /* Markdown Preview Styles */

@@ -7,13 +7,16 @@ interface EditorStylesProps {
 export function EditorStyles({ settings }: EditorStylesProps) {
   // Clamp line-height to a minimum of 1.0 to prevent text overlap on word wrap
   const safeLineHeight = Math.max(1.0, parseFloat(settings.lineHeight) || 1.6);
+  const isJeonSoMin = settings.fontFamily.includes("JeonSoMin");
+  const baseFontSize = parseInt(settings.fontSize) || 16;
+  const adjustedFontSize = isJeonSoMin ? `${baseFontSize + 2}px` : settings.fontSize;
 
   return (
     <style dangerouslySetInnerHTML={{
       __html: `
       .tiptap.prose {
         font-family: ${settings.fontFamily} !important;
-        font-size: ${settings.fontSize} !important;
+        font-size: ${adjustedFontSize} !important;
         line-height: ${safeLineHeight} !important;
         letter-spacing: ${settings.letterSpacing} !important;
         max-width: ${settings.maxWidth} !important;

@@ -71,7 +71,10 @@ export function SpreadsheetPanel(props: IDockviewPanelProps) {
   }, [handleChange, showToolbar, isReadOnly]);
 
   return (
-    <div className="w-full h-full relative" style={{ background: 'white' }}>
+    <div 
+      className="w-full h-full relative light" 
+      style={{ background: 'white' }}
+    >
       {isLocked ? (
         <LockedView panelId={id} />
       ) : (

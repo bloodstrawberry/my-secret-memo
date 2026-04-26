@@ -23,7 +23,7 @@ export function Toolbar({ editor, colorInputRef, highlightInputRef }: ToolbarPro
       {/* Headings Dropdown */}
       <div className="flex items-center gap-1">
         <select
-          className="bg-transparent text-[var(--foreground)] text-xs font-medium px-2 py-1 rounded-md border border-[var(--border-color)] outline-none hover:bg-slate-500/5 focus:ring-1 focus:ring-cyan-500/30 cursor-pointer transition-all duration-200"
+          className="bg-[var(--panel-bg)] text-[var(--foreground)] text-xs font-medium px-2 py-1 rounded-md border border-[var(--border-color)] outline-none hover:bg-slate-500/5 focus:ring-1 focus:ring-cyan-500/30 cursor-pointer transition-all duration-200"
           value={
             editor.isActive("heading", { level: 1 }) ? "1" :
               editor.isActive("heading", { level: 2 }) ? "2" :

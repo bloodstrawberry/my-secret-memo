@@ -12,6 +12,96 @@ import { memoDB } from "@/app/library/indexDB";
 import { DEFAULT_MEMOS, DEFAULT_TITLES } from "@/app/constants/default";
 import { encryptMemosText } from "@/app/components/dockview/utils";
 import { useLoadingOverlay } from "@/app/store/loading-overlay-store";
+import { useEffect, useRef } from "react";
+
+const FONT_OPTIONS = [
+  { name: "Pretendard", value: "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif" },
+  { name: "Noto Sans KR", value: "'Noto Sans KR', sans-serif" },
+  { name: "전소민체", value: "'JeonSoMin', sans-serif" },
+  { name: "Consolas (Mono)", value: "'Consolas', 'Monaco', monospace" },
+  { name: "Open Sans", value: "var(--font-open-sans), sans-serif" },
+  { name: "Montserrat", value: "var(--font-montserrat), sans-serif" },
+  { name: "Roboto", value: "var(--font-roboto), sans-serif" },
+  { name: "Inter", value: "'Inter', sans-serif" },
+  { name: "Lora (Serif)", value: "var(--font-lora), serif" },
+  { name: "JetBrains Mono", value: "var(--font-jetbrains-mono), monospace" },
+  { name: "Georgia (Serif)", value: "Georgia, serif" },
+];
+
+function FontFamilySelector() {
+  const { settings, updateSettings } = useSettings();
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const selectedFont = FONT_OPTIONS.find(f => f.value === settings.fontFamily) || FONT_OPTIONS[0];
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full bg-[var(--panel-bg)] border border-[var(--border-color)] rounded-xl p-2.5 text-xs text-[var(--foreground)] outline-none flex items-center justify-between hover:bg-slate-500/5 transition-all group"
+      >
+        <span style={{ 
+          fontFamily: selectedFont.value,
+          fontSize: selectedFont.name === "전소민체" ? "14px" : "12px"
+        }}>
+          {selectedFont.name}
+        </span>
+        <Icon 
+          icon="material-symbols:keyboard-arrow-down-rounded" 
+          className={`w-4 h-4 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`} 
+        />
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            className="absolute top-full left-0 right-0 mt-2 bg-[var(--panel-bg)] border border-[var(--border-color)] rounded-2xl shadow-2xl z-[60] overflow-hidden backdrop-blur-xl max-h-60 overflow-y-auto custom-scrollbar"
+          >
+            <div className="p-1.5 flex flex-col gap-0.5">
+              {FONT_OPTIONS.map((font) => (
+                <button
+                  key={font.name}
+                  onClick={() => {
+                    updateSettings({ fontFamily: font.value });
+                    setIsOpen(false);
+                  }}
+                  className={`w-full text-left px-3 py-2.5 rounded-xl text-xs transition-all flex items-center justify-between group ${
+                    settings.fontFamily === font.value 
+                      ? "bg-cyan-500 text-white font-bold" 
+                      : "text-[var(--foreground)] hover:bg-cyan-500/10 hover:text-cyan-500"
+                  }`}
+                  style={{ 
+                    fontFamily: font.value,
+                    fontSize: font.name === "전소민체" ? "14px" : "12px" 
+                  }}
+                >
+                  <span>{font.name}</span>
+                  {settings.fontFamily === font.value && (
+                    <Icon icon="material-symbols:check-rounded" className="w-4 h-4" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 export function SettingsPopover({ onClose }: { onClose: () => void }) {
   const { settings, updateSettings } = useSettings();
@@ -108,23 +198,7 @@ export function SettingsPopover({ onClose }: { onClose: () => void }) {
           {/* Font Family */}
           <div className="space-y-1.5">
             <div className="text-[10px] font-bold uppercase tracking-tighter opacity-60">Font Family</div>
-            <select
-              value={settings.fontFamily}
-              onChange={(e) => updateSettings({ fontFamily: e.target.value })}
-              className="w-full bg-transparent border border-[var(--border-color)] rounded-lg p-2 text-xs text-[var(--foreground)] outline-none focus:ring-1 focus:ring-cyan-500/30"
-            >
-              <option value="'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif">Pretendard</option>
-              <option value="'Noto Sans KR', sans-serif">Noto Sans KR</option>
-              <option value="'JeonSoMin', sans-serif">전소민체</option>
-              <option value="'Consolas', 'Monaco', monospace">Consolas (Mono)</option>
-              <option value="var(--font-open-sans), sans-serif">Open Sans</option>
-              <option value="var(--font-montserrat), sans-serif">Montserrat</option>
-              <option value="var(--font-roboto), sans-serif">Roboto</option>
-              <option value="'Inter', sans-serif">Inter</option>
-              <option value="var(--font-lora), serif">Lora (Serif)</option>
-              <option value="var(--font-jetbrains-mono), monospace">JetBrains Mono</option>
-              <option value="Georgia, serif">Georgia (Serif)</option>
-            </select>
+            <FontFamilySelector />
           </div>
         </div>
         <div className="border-t border-[var(--border-color)] opacity-50" />

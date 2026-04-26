@@ -112,13 +112,13 @@ const SortableTodoItem = memo(function SortableTodoItem({
           onChange={(e) => setEditingText(e.target.value)}
           onBlur={handleEditSave}
           onKeyDown={handleEditKeyDown}
-          className="flex-1 bg-transparent border-b border-cyan-500 outline-none text-sm text-[var(--foreground)]"
+          className="flex-1 bg-transparent border-b border-cyan-500 outline-none text-[var(--foreground)]"
         />
       ) : (
         <span
           onDoubleClick={() => !isReadOnly && handleEditStart(item)}
           title={item.text}
-          className={`flex-1 whitespace-nowrap overflow-hidden text-ellipsis text-sm transition-all cursor-text select-none ${item.completed ? "line-through opacity-70" : ""}`}
+          className={`flex-1 whitespace-nowrap overflow-hidden text-ellipsis transition-all cursor-text select-none ${item.completed ? "line-through opacity-70" : ""}`}
         >
           {item.text}
         </span>
@@ -243,7 +243,8 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
       className="h-full w-full bg-[var(--panel-bg)] flex flex-col overflow-hidden transition-colors duration-300 border border-[var(--border-color)] relative"
       style={{
         fontFamily: settings.fontFamily,
-        fontWeight: isJeonSoMin ? "bold" : "normal"
+        fontWeight: isJeonSoMin ? "bold" : "normal",
+        fontSize: isJeonSoMin ? `${parseInt(settings.fontSize) + 2}px` : settings.fontSize
       }}
     >
       {isLocked ? (
