@@ -234,7 +234,9 @@ function AutoLockToggle() {
         if (!data) {
           data = { memos, titles };
         }
-        const memosToEncrypt = data.memos || memos;
+        // Fix: Use the live decrypted memos from memory (which are already in scope)
+        // instead of data.memos which might be stale or encrypted.
+        const memosToEncrypt = memos;
         data.memos = encryptMemosText(memosToEncrypt, key);
         data.isEncrypted = true;
         data.autoLock = true;

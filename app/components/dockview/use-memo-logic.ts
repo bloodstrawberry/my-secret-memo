@@ -620,7 +620,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
   }, [apiRef]);
 
   const toggleEncryption = useCallback(() => {
-    const autoLockOn = useAutoLockStore.getState().autoLockEnabled;
+    const { autoLockEnabled, setSessionKey } = useAutoLockStore.getState();
 
     if (!isEncrypted) {
       showSecurePrompt("암호화 key를 입력하세요", async (key) => {
@@ -638,12 +638,19 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
           if (!data) {
             data = { memos: stateRef.current.memos, titles: stateRef.current.titles };
           }
-          const memosToEncrypt = data.memos || stateRef.current.memos;
+          // Fix: Always use the decrypted live memos from memory when locking, 
+          // instead of potentially double-encrypting data already in the database.
+          const memosToEncrypt = stateRef.current.memos;
           data.memos = encryptMemosText(memosToEncrypt, key);
           data.isEncrypted = true;
           const { default: CryptoJS } = await import("crypto-js");
           data.keyHash = CryptoJS.SHA256(key).toString();
           delete data.encryptedKey;
+          
+          if (autoLockEnabled) {
+            data.autoLock = true;
+          }
+
           await memoDB.setItem(STORAGE_KEY, data);
           setIsEncrypted(true);
           isEncryptedRef.current = true;
@@ -651,6 +658,9 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
           setTitles(DEFAULT_TITLES);
           stateRef.current.memos = DEFAULT_MEMOS;
           stateRef.current.titles = DEFAULT_TITLES;
+          
+          // Clear session key when manually locking
+          setSessionKey(null);
 
           setTimeout(() => useLoadingOverlay.getState().hide(), 600);
         } catch {
@@ -685,10 +695,10 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
 
             const decryptedMemos = decryptMemosText(data.memos, key);
 
-            if (autoLockOn) {
+            if (autoLockEnabled) {
               // Auto-lock ON: decrypt in memory only, keep encrypted in IndexedDB
               // Store session key so persist logic can re-encrypt on save
-              useAutoLockStore.getState().setSessionKey(key);
+              setSessionKey(key);
               setIsEncrypted(false);
               isEncryptedRef.current = false;
               setMemos(decryptedMemos);
