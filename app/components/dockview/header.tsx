@@ -2,18 +2,23 @@ import { RefObject, useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import SettingsButton from "@/app/components/settings-button";
 import { useAutoLockStore } from "@/app/store/auto-lock-store";
+import { useHistoryStore } from "@/app/store/history-store";
+import { HistoryCalendar } from "./history-calendar";
 import { Icon } from "@iconify/react";
+
 interface HeaderProps {
   isEncrypted: boolean;
   toggleEncryption: () => void;
   saveStatus: "idle" | "saving" | "success";
   progressWidth: string;
   addMemo: (type?: "memo" | "todo" | "spreadsheet") => void;
-  downloadData: () => void;
+  downloadData: (mode: "current" | "full") => void;
   uploadData: (e: React.ChangeEvent<HTMLInputElement>) => void;
   fileInputRef: RefObject<HTMLInputElement | null>;
   isDarkMode: boolean;
   setIsDarkMode: (val: boolean) => void;
+  loadHistoryDate: (dateKey: string | null) => void;
+  deleteHistoryDate: (dateKey: string) => void;
 }
 
 export function Header({
@@ -26,16 +31,24 @@ export function Header({
   uploadData,
   fileInputRef,
   isDarkMode,
-  setIsDarkMode
+  setIsDarkMode,
+  loadHistoryDate,
+  deleteHistoryDate
 }: HeaderProps) {
   const keyError = useAutoLockStore(state => state.keyError);
+  const { viewingDate, isReadOnly } = useHistoryStore();
   const [showAddMenu, setShowAddMenu] = useState(false);
+  const [showDownloadMenu, setShowDownloadMenu] = useState(false);
   const addMenuRef = useRef<HTMLDivElement>(null);
+  const downloadMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (addMenuRef.current && !addMenuRef.current.contains(event.target as Node)) {
         setShowAddMenu(false);
+      }
+      if (downloadMenuRef.current && !downloadMenuRef.current.contains(event.target as Node)) {
+        setShowDownloadMenu(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -56,6 +69,20 @@ export function Header({
             <span className="px-1.5 py-0.5 rounded text-[10px] bg-cyan-500/10 text-cyan-500 border border-cyan-500/20 font-mono font-medium">PRO</span>
 
             <SettingsButton />
+
+            {/* History Calendar - between Settings and Lock */}
+            <HistoryCalendar onSelectDate={loadHistoryDate} />
+
+            {isReadOnly && viewingDate && (
+              <button
+                onClick={() => deleteHistoryDate(viewingDate)}
+                title="이력 삭제"
+                className="ml-2 p-1.5 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all flex items-center justify-center"
+              >
+                <Icon icon="mdi:trash-can-outline" className="w-4 h-4" />
+              </button>
+            )}
+
             <button
               onClick={toggleEncryption}
               title={isEncrypted ? "암호화 해제" : "암호화 잠금"}
@@ -80,7 +107,12 @@ export function Header({
             </button>
           </h1>
           <div className="flex items-center gap-2 text-slate-500 text-[10px] font-medium uppercase tracking-widest transition-all duration-300">
-            {saveStatus === "saving" ? (
+            {isReadOnly && viewingDate ? (
+              <>
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                <span className="text-amber-500 font-bold">History: {viewingDate} (읽기 전용)</span>
+              </>
+            ) : saveStatus === "saving" ? (
               <>
                 <div className="flex items-center gap-1.5 min-w-[80px]">
                   <div className="relative w-2 h-2">
@@ -170,15 +202,50 @@ export function Header({
           </AnimatePresence>
         </div>
 
-        <button
-          onClick={downloadData}
-          title="Download"
-          className="flex items-center justify-center p-2.5 rounded-xl bg-[var(--header-bg)] hover:bg-[var(--border-color)] text-[var(--foreground)] border border-[var(--border-color)] transition-all active:scale-95 shadow-sm"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-          </svg>
-        </button>
+        <div className="relative" ref={downloadMenuRef}>
+          <button
+            onClick={() => setShowDownloadMenu(!showDownloadMenu)}
+            title="Download"
+            className="flex items-center justify-center p-2.5 rounded-xl bg-[var(--header-bg)] hover:bg-[var(--border-color)] text-[var(--foreground)] border border-[var(--border-color)] transition-all active:scale-95 shadow-sm"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+          </button>
+
+          <AnimatePresence>
+            {showDownloadMenu && (
+              <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                style={{ minWidth: 200 }}
+                className="absolute top-full right-0 mt-2 bg-[var(--panel-bg)] border border-[var(--border-color)] rounded-2xl shadow-2xl z-50 p-2 backdrop-blur-xl flex flex-col gap-1"
+              >
+                <button
+                  onClick={() => {
+                    downloadData("current");
+                    setShowDownloadMenu(false);
+                  }}
+                  className="flex items-center gap-4 px-4 py-2.5 rounded-xl hover:bg-cyan-500/10 text-[var(--foreground)] transition-colors text-sm font-medium text-left w-full"
+                >
+                  <Icon icon="mdi:calendar-today" className="w-5 h-5 text-cyan-500 flex-shrink-0" />
+                  <span className="whitespace-nowrap">현재 날짜만</span>
+                </button>
+                <button
+                  onClick={() => {
+                    downloadData("full");
+                    setShowDownloadMenu(false);
+                  }}
+                  className="flex items-center gap-4 px-4 py-2.5 rounded-xl hover:bg-cyan-500/10 text-[var(--foreground)] transition-colors text-sm font-medium text-left w-full"
+                >
+                  <Icon icon="mdi:history" className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                  <span className="whitespace-nowrap">전체 데이터 (이력 포함)</span>
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         <button
           onClick={() => fileInputRef.current?.click()}

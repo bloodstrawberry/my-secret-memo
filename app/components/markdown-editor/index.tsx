@@ -9,7 +9,7 @@ import { EditorStyles } from "./editor-styles";
 import { useEditorConfig } from "./use-editor-config";
 
 export function MarkdownEditor(props: MarkdownEditorProps) {
-  const { panelId } = props;
+  const { panelId, readOnly } = props;
   const { toolbarVisibility } = useVisualToggleStore();
   const isToolbarVisible = panelId ? toolbarVisibility[panelId] !== false : true;
 
@@ -26,12 +26,20 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
     <div className="flex flex-col w-full h-full min-h-0 bg-[var(--panel-bg)]">
       <div className="flex-1 flex flex-col overflow-hidden transition-all duration-300">
         {/* Toolbar */}
-        {isToolbarVisible && (
+        {isToolbarVisible && !readOnly && (
           <Toolbar
             editor={editor}
             colorInputRef={colorInputRef}
             highlightInputRef={highlightInputRef}
           />
+        )}
+
+        {/* Read-only indicator */}
+        {readOnly && (
+          <div className="flex items-center gap-2 px-4 py-1.5 bg-amber-500/10 border-b border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-bold">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+            읽기 전용
+          </div>
         )}
 
         {/* Editor Area with dynamic style injection for robust settings application */}

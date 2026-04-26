@@ -15,7 +15,7 @@ import { debounce } from "es-toolkit";
 import { EditorJSON, MarkdownEditorProps, EDITOR_PADDING } from "./types";
 import { useSettings } from "@/app/context/settings-context";
 
-export function useEditorConfig({ value, onChange, onBlur, placeholder }: MarkdownEditorProps) {
+export function useEditorConfig({ value, onChange, onBlur, placeholder, readOnly }: MarkdownEditorProps) {
   const [isMounted, setIsMounted] = useState(false);
   const { settings } = useSettings();
 
@@ -114,6 +114,7 @@ export function useEditorConfig({ value, onChange, onBlur, placeholder }: Markdo
         class: `prose dark:prose-invert max-w-none focus:outline-none min-h-full ${EDITOR_PADDING} text-[var(--foreground)] mx-auto`,
       },
     },
+    editable: !readOnly,
     immediatelyRender: false,
   });
 
@@ -153,6 +154,13 @@ export function useEditorConfig({ value, onChange, onBlur, placeholder }: Markdo
       });
     }
   }, [editor, settings]);
+
+  // Update editable state when readOnly changes
+  useEffect(() => {
+    if (editor) {
+      editor.setEditable(!readOnly);
+    }
+  }, [editor, readOnly]);
 
   return {
     editor,

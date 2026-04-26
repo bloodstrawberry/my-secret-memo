@@ -4,6 +4,7 @@ export const MemoContext = createContext<{
   memos: Record<string, any>;
   titles: Record<string, string>;
   isEncrypted: boolean;
+  isReadOnly: boolean;
   updateMemo: (id: string, val: any, immediate?: boolean) => void;
   updateTitle: (id: string, title: string) => void;
   removeMemo: (id: string) => void;
@@ -12,6 +13,7 @@ export const MemoContext = createContext<{
   memos: {},
   titles: {},
   isEncrypted: false,
+  isReadOnly: false,
   updateMemo: () => { },
   updateTitle: () => { },
   removeMemo: () => { },

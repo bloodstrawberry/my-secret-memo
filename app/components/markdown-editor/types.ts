@@ -8,6 +8,7 @@ export interface MarkdownEditorProps {
   onBlur?: (value: EditorJSON) => void;
   placeholder?: string;
   panelId?: string;
+  readOnly?: boolean;
 }
 
 export const ICON_SIZE = 18;

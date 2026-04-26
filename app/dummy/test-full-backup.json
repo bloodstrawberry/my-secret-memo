@@ -1,0 +1,68 @@
+{
+  "memos": {
+    "memo1": {
+      "type": "doc",
+      "content": [
+        { "type": "paragraph", "content": [{ "type": "text", "text": "오늘의 메모입니다." }] }
+      ]
+    },
+    "todo1": {
+      "items": [
+        { "id": "t1", "text": "오늘 할 일", "completed": false }
+      ]
+    }
+  },
+  "titles": {
+    "memo1": "오늘 메모",
+    "todo1": "오늘 할 일"
+  },
+  "settings": {
+    "lineHeight": "1.6",
+    "letterSpacing": "0px",
+    "fontSize": "16px",
+    "fontFamily": "Pretendard",
+    "maxWidth": "100%"
+  },
+  "theme": "light",
+  "layout": {
+    "grid": {
+      "root": {
+        "type": "branch",
+        "data": [
+          { "type": "leaf", "data": { "views": ["memo1"], "activeView": "memo1", "id": "1" }, "size": 50 },
+          { "type": "leaf", "data": { "views": ["todo1"], "activeView": "todo1", "id": "2" }, "size": 50 }
+        ],
+        "size": 100
+      }
+    },
+    "panels": {
+      "memo1": { "id": "memo1", "contentComponent": "editor", "title": "오늘 메모" },
+      "todo1": { "id": "todo1", "contentComponent": "todoList", "title": "오늘 할 일" }
+    }
+  },
+  "__history": {
+    "2026-04-24": {
+      "memos": {
+        "memo1": { "type": "doc", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "2일 전의 이력 데이터입니다." }] }] },
+        "todo1": { "items": [{ "id": "t1", "text": "과거에 했던 일", "completed": true }] }
+      },
+      "titles": { "memo1": "과거 메모 (04-24)", "todo1": "과거 할 일" },
+      "layout": {
+        "grid": { "root": { "type": "leaf", "data": { "views": ["memo1"], "activeView": "memo1", "id": "1" }, "size": 100 } },
+        "panels": { "memo1": { "id": "memo1", "contentComponent": "editor", "title": "과거 메모 (04-24)" } }
+      },
+      "isEncrypted": false
+    },
+    "2026-04-25": {
+      "memos": {
+        "memo1": { "type": "doc", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "어제 날짜의 이력 데이터입니다." }] }] }
+      },
+      "titles": { "memo1": "어제 메모 (04-25)" },
+      "layout": {
+        "grid": { "root": { "type": "leaf", "data": { "views": ["memo1"], "activeView": "memo1", "id": "1" }, "size": 100 } },
+        "panels": { "memo1": { "id": "memo1", "contentComponent": "editor", "title": "어제 메모 (04-25)" } }
+      },
+      "isEncrypted": false
+    }
+  }
+}

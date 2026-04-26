@@ -43,6 +43,7 @@ interface SortableTodoItemProps {
   handleEditKeyDown: (e: KeyboardEvent<HTMLInputElement>) => void;
   toggleCompleted: (id: string) => void;
   deleteItem: (id: string) => void;
+  isReadOnly?: boolean;
 }
 
 const SortableTodoItem = memo(function SortableTodoItem({
@@ -55,6 +56,7 @@ const SortableTodoItem = memo(function SortableTodoItem({
   handleEditKeyDown,
   toggleCompleted,
   deleteItem,
+  isReadOnly,
 }: SortableTodoItemProps) {
   const {
     attributes,
@@ -90,7 +92,8 @@ const SortableTodoItem = memo(function SortableTodoItem({
       </div>
 
       <button
-        onClick={() => toggleCompleted(item.id)}
+        onClick={() => !isReadOnly && toggleCompleted(item.id)}
+        disabled={isReadOnly}
         className={`flex-shrink-0 w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${item.completed
           ? "bg-emerald-500 border-emerald-500 text-white"
           : "border-slate-400 hover:border-cyan-500 text-transparent hover:text-cyan-500/30"
@@ -111,7 +114,7 @@ const SortableTodoItem = memo(function SortableTodoItem({
         />
       ) : (
         <span
-          onDoubleClick={() => handleEditStart(item)}
+          onDoubleClick={() => !isReadOnly && handleEditStart(item)}
           title={item.text}
           className={`flex-1 whitespace-nowrap overflow-hidden text-ellipsis text-sm transition-all cursor-text select-none ${item.completed ? "line-through opacity-70" : ""}`}
         >
@@ -119,18 +122,20 @@ const SortableTodoItem = memo(function SortableTodoItem({
         </span>
       )}
 
-      <button
-        onClick={() => deleteItem(item.id)}
-        className="flex-shrink-0 opacity-0 group-hover:opacity-100 p-1.5 text-red-500/70 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
-      >
-        <Icon icon="mdi:trash-can-outline" className="w-4 h-4" />
-      </button>
+      {!isReadOnly && (
+        <button
+          onClick={() => deleteItem(item.id)}
+          className="flex-shrink-0 opacity-0 group-hover:opacity-100 p-1.5 text-red-500/70 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+        >
+          <Icon icon="mdi:trash-can-outline" className="w-4 h-4" />
+        </button>
+      )}
     </div>
   );
 });
 
 export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelProps) {
-  const { memos, updateMemo } = useContext(MemoContext);
+  const { memos, isReadOnly, updateMemo } = useContext(MemoContext);
   const { settings } = useSettings();
   const memoData: TodoData = memos[props.api.id] || { items: [] };
   const [inputValue, setInputValue] = useState("");
@@ -238,6 +243,14 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
       }}
     >
 
+      {/* Read-only indicator */}
+      {isReadOnly && (
+        <div className="flex items-center gap-2 px-6 py-1.5 bg-amber-500/10 border-b border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-bold">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+          읽기 전용
+        </div>
+      )}
+
       <div className="p-6 pb-0">
         <div className="flex items-center justify-between mb-6">
           <div className="text-xs font-medium text-slate-500 bg-slate-500/10 px-2 py-1 rounded-full whitespace-nowrap">
@@ -251,12 +264,13 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="What needs to be done?"
-            className="flex-1 bg-transparent border-b border-[var(--border-color)] focus:border-cyan-500 pb-2 outline-none text-[var(--foreground)] transition-colors min-w-0"
+            placeholder={isReadOnly ? "읽기 전용 모드" : "What needs to be done?"}
+            disabled={isReadOnly}
+            className="flex-1 bg-transparent border-b border-[var(--border-color)] focus:border-cyan-500 pb-2 outline-none text-[var(--foreground)] transition-colors min-w-0 disabled:opacity-50 disabled:cursor-not-allowed"
           />
           <button
             onClick={handleAdd}
-            disabled={!inputValue.trim()}
+            disabled={!inputValue.trim() || isReadOnly}
             className="p-2 bg-cyan-500 text-white rounded-xl hover:bg-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-sm shadow-cyan-500/20 flex-shrink-0"
           >
             <Icon icon="mdi:plus" className="w-5 h-5" />
@@ -294,6 +308,7 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
                     handleEditKeyDown={handleEditKeyDown}
                     toggleCompleted={toggleCompleted}
                     deleteItem={deleteItem}
+                    isReadOnly={isReadOnly}
                   />
                 ))}
               </SortableContext>

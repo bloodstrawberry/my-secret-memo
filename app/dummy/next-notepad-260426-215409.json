@@ -1,0 +1,197 @@
+{
+  "memos": {
+    "memo1": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "paragraph",
+          "attrs": {
+            "textAlign": null
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "MEMO1"
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "attrs": {
+            "textAlign": null
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "여기에 첫 번째 메모를 작성하세요."
+            }
+          ]
+        },
+        {
+          "type": "horizontalRule"
+        },
+        {
+          "type": "paragraph",
+          "attrs": {
+            "textAlign": null
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "오늘 데이터인가"
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "attrs": {
+            "textAlign": null
+          }
+        }
+      ]
+    },
+    "todo1": {
+      "items": [
+        {
+          "id": "todo-1",
+          "text": "Next Notepad 사용해보기",
+          "completed": true
+        },
+        {
+          "id": "todo-2",
+          "text": "새로운 메모 작성하기",
+          "completed": false
+        },
+        {
+          "id": "todo-3",
+          "text": "보안 기능 확인하기 (Auto Lock)",
+          "completed": false
+        }
+      ]
+    },
+    "spreadsheet1": [
+      {
+        "name": "Sheet1",
+        "id": "086f4ae8-63fe-4851-a591-a9e1de45a742",
+        "status": 1,
+        "luckysheet_select_save": [
+          {
+            "row": [
+              0,
+              null
+            ],
+            "column": [
+              0,
+              null
+            ],
+            "row_focus": 0,
+            "column_focus": 0,
+            "left": 0,
+            "width": null,
+            "top": 0,
+            "height": null,
+            "left_move": 0,
+            "width_move": null,
+            "top_move": 0,
+            "height_move": null
+          }
+        ],
+        "celldata": []
+      }
+    ]
+  },
+  "titles": {
+    "memo1": "MEMO1",
+    "todo1": "TO-DO LIST"
+  },
+  "settings": {
+    "lineHeight": "1.6",
+    "letterSpacing": "0px",
+    "fontSize": "16px",
+    "fontFamily": "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
+    "maxWidth": "100%"
+  },
+  "theme": "light",
+  "layout": {
+    "grid": {
+      "root": {
+        "type": "branch",
+        "data": [
+          {
+            "type": "leaf",
+            "data": {
+              "views": [
+                "memo1"
+              ],
+              "activeView": "memo1",
+              "id": "1"
+            },
+            "size": 960
+          },
+          {
+            "type": "branch",
+            "data": [
+              {
+                "type": "leaf",
+                "data": {
+                  "views": [
+                    "todo1"
+                  ],
+                  "activeView": "todo1",
+                  "id": "2"
+                },
+                "size": 420
+              },
+              {
+                "type": "leaf",
+                "data": {
+                  "views": [
+                    "spreadsheet1"
+                  ],
+                  "activeView": "spreadsheet1",
+                  "id": "3"
+                },
+                "size": 420
+              }
+            ],
+            "size": 960
+          }
+        ],
+        "size": 840
+      },
+      "width": 1920,
+      "height": 840,
+      "orientation": "HORIZONTAL"
+    },
+    "panels": {
+      "memo1": {
+        "id": "memo1",
+        "contentComponent": "editor",
+        "tabComponent": "default",
+        "title": "MEMO1"
+      },
+      "todo1": {
+        "id": "todo1",
+        "contentComponent": "todoList",
+        "tabComponent": "default",
+        "title": "TO-DO LIST"
+      },
+      "spreadsheet1": {
+        "id": "spreadsheet1",
+        "contentComponent": "spreadsheet",
+        "tabComponent": "default",
+        "title": "SPREADSHEET"
+      }
+    },
+    "activeGroup": "2"
+  },
+  "visualToggles": {
+    "memo1": true,
+    "memo2": false,
+    "memo3": false,
+    "memo-1777043507637": false,
+    "memo-1777038346580": false,
+    "spreadsheet1": true
+  },
+  "lastUpdated": "2026-04-26T12:53:13.006Z"
+}

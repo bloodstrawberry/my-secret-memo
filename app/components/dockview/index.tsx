@@ -34,8 +34,8 @@ export default function DockviewMemo() {
 
   const {
     memos, titles, isDarkMode, setIsDarkMode, isMounted, settings, updateSettings,
-    saveStatus, progressWidth, isEncrypted, lastUpdated, persistState, removeMemo, resetData,
-    updateMemo, updateTitle, addMemo, downloadData, uploadData, toggleEncryption
+    saveStatus, progressWidth, isEncrypted, isReadOnly, lastUpdated, persistState, removeMemo, resetData,
+    updateMemo, updateTitle, addMemo, downloadData, uploadData, toggleEncryption, loadHistoryDate, deleteHistoryDate
   } = useMemoLogic(apiRef);
 
   const { onReady, panelIds } = useDockviewManager(apiRef, removeMemo, persistState);
@@ -57,7 +57,7 @@ export default function DockviewMemo() {
 
   return (
     <SettingsContext.Provider value={{ settings, updateSettings }}>
-      <MemoContext.Provider value={{ memos, titles, isEncrypted, updateMemo, updateTitle, removeMemo, resetData }}>
+      <MemoContext.Provider value={{ memos, titles, isEncrypted, isReadOnly, updateMemo, updateTitle, removeMemo, resetData }}>
         <main className="h-screen w-screen bg-[var(--background)] overflow-hidden flex flex-col font-sans relative transition-colors duration-300">
           {/* Background blobs */}
           <div className="fixed inset-0 overflow-hidden pointer-events-none opacity-5 dark:opacity-20 transition-opacity duration-500">
@@ -77,6 +77,8 @@ export default function DockviewMemo() {
             fileInputRef={fileInputRef}
             isDarkMode={isDarkMode}
             setIsDarkMode={setIsDarkMode}
+            loadHistoryDate={loadHistoryDate}
+            deleteHistoryDate={deleteHistoryDate}
           />
 
           {/* Dockview */}

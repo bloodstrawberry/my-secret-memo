@@ -6,10 +6,21 @@ import { DEFAULT_MEMOS, DEFAULT_TITLES, STORAGE_KEYS } from "@/app/constants/def
 import { memoDB } from "../../library/indexDB";
 import { useVisualToggleStore } from "@/app/store/visual-toggle-store";
 import { useAutoLockStore } from "@/app/store/auto-lock-store";
+import { useHistoryStore } from "@/app/store/history-store";
 import { useLoadingOverlay } from "@/app/store/loading-overlay-store";
 import { EditorSettings, DEFAULT_SETTINGS } from "@/app/context/settings-context";
 import { encryptMemosText, decryptMemosText } from "./utils";
 import { DockviewReadyEvent } from "dockview";
+
+const MAX_HISTORY = 100;
+
+function getTodayKey(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
 
 export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] | null>) {
   const [memos, setMemos] = useState<Record<string, any>>({});
@@ -21,6 +32,10 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
   const [progressWidth, setProgressWidth] = useState("0%");
   const [isEncrypted, setIsEncrypted] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+
+  // History: track the last snapshot hash to detect changes
+  const lastHistoryHashRef = useRef<string>("");
+  const { viewingDate, isReadOnly } = useHistoryStore();
 
   const skipPersistRef = useRef(false);
   const statusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -49,6 +64,9 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     silent?: boolean;
   }) => {
     if (!isMounted || skipPersistRef.current) return;
+
+    // Don't persist while viewing history
+    if (useHistoryStore.getState().isReadOnly) return;
 
     // Check auto-lock state
     const { autoLockEnabled, sessionKey } = useAutoLockStore.getState();
@@ -94,6 +112,34 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
       await memoDB.setItem(STORAGE_KEY, currentState);
       lastSaveTimeRef.current = Date.now();
       lastSavedVersionRef.current = Math.max(lastSavedVersionRef.current, saveVersion);
+
+      // Save history snapshot for today (only if data actually changed)
+      try {
+        const todayKey = getTodayKey();
+        const snapshotData = JSON.stringify({ memos: memosToSave, titles: titlesToSave });
+        const snapshotHash = snapshotData.length + "-" + snapshotData.slice(0, 200);
+        if (snapshotHash !== lastHistoryHashRef.current) {
+          lastHistoryHashRef.current = snapshotHash;
+          const historyEntry = {
+            memos: currentState.memos,
+            titles: titlesToSave,
+            settings: currentState.settings,
+            theme: currentState.theme,
+            layout: currentState.layout,
+            savedAt: currentState.lastUpdated,
+            isEncrypted: currentState.isEncrypted || false,
+          };
+          // Enforce max 100 history entries
+          const keys = await memoDB.getAllHistoryKeys();
+          if (keys.length >= MAX_HISTORY && !keys.includes(todayKey)) {
+            // Delete the oldest entry
+            await memoDB.deleteHistoryItem(keys[0]);
+          }
+          await memoDB.setHistoryItem(todayKey, historyEntry);
+        }
+      } catch (histErr) {
+        console.error("History snapshot failed", histErr);
+      }
 
       if (!overrides?.silent && versionRef.current === lastSavedVersionRef.current) {
         setSaveStatus("success");
@@ -205,6 +251,8 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
   }, [isDarkMode, isMounted]);
 
   const updateMemo = useCallback((id: string, val: any, immediate = false) => {
+    // Block writes in read-only history mode
+    if (useHistoryStore.getState().isReadOnly) return;
     versionRef.current++;
     lastInputTimeRef.current = Date.now();
     setSaveStatus(prev => prev !== "saving" ? "saving" : prev);
@@ -222,6 +270,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
   }, [debouncedPersist, persistState]);
 
   const updateTitle = useCallback((id: string, title: string) => {
+    if (useHistoryStore.getState().isReadOnly) return;
     versionRef.current++;
     lastInputTimeRef.current = Date.now();
     setSaveStatus(prev => prev !== "saving" ? "saving" : prev);
@@ -257,6 +306,10 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
   }, [saveStatus]);
 
   const removeMemo = useCallback((id: string) => {
+    if (useHistoryStore.getState().isReadOnly) {
+      toast.error("읽기 전용 모드에서는 삭제할 수 없습니다.");
+      return;
+    }
     const nextMemos = { ...stateRef.current.memos };
     delete nextMemos[id];
     setMemos(nextMemos);
@@ -348,6 +401,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
       setKeyError(false);
 
       await memoDB.deleteItem(STORAGE_KEY);
+      await memoDB.clearHistory();
       localStorage.removeItem(STORAGE_KEYS.MEMOS);
       localStorage.removeItem(STORAGE_KEYS.TITLES);
       localStorage.removeItem(STORAGE_KEYS.LAYOUT);
@@ -357,6 +411,10 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
   }, [persistState]);
 
   const addMemo = useCallback((type: "memo" | "todo" | "spreadsheet" = "memo") => {
+    if (useHistoryStore.getState().isReadOnly) {
+      toast.error("읽기 전용 모드에서는 추가할 수 없습니다.");
+      return;
+    }
     if (!apiRef.current) return;
     const id = `${type}-${Date.now()}`;
     const component = type === "memo" ? "editor" : type === "todo" ? "todoList" : "spreadsheet";
@@ -380,34 +438,49 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     toast.success(type === "memo" ? "새로운 메모가 생성되었습니다." : type === "todo" ? "새로운 To-Do List가 생성되었습니다." : "새로운 스프레드시트가 생성되었습니다.");
   }, [persistState, apiRef]);
 
-  const downloadData = useCallback(async () => {
+  const downloadData = useCallback(async (mode: "current" | "full" = "current") => {
     const data = await memoDB.getItem<any>(STORAGE_KEY);
     if (!data) {
       toast.error("저장된 데이터가 없습니다.");
       return;
     }
 
-    // If auto-lock is ON, download the encrypted data as-is
-    // (memos stay encrypted in indexedDB; we export that directly)
     const autoLockOn = useAutoLockStore.getState().autoLockEnabled;
-    let exportData = data;
-    if (autoLockOn && data.isEncrypted) {
-      // Already encrypted in DB — export as-is
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, "0");
+    const dateStr = `${now.getFullYear().toString().slice(-2)}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
+    const timeStr = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+
+    let exportData: any;
+    let filename: string;
+
+    if (mode === "full") {
+      // Full mode: include all history entries
+      const historyKeys = await memoDB.getAllHistoryKeys();
+      const history: Record<string, any> = {};
+      for (const key of historyKeys) {
+        const entry = await memoDB.getHistoryItem<any>(key);
+        if (entry) history[key] = entry;
+      }
+      exportData = { ...data, __history: history };
+      filename = `next-notepad-full-${dateStr}-${timeStr}${autoLockOn ? "-encrypted" : ""}.json`;
+    } else {
       exportData = data;
+      filename = `next-notepad-${dateStr}-${timeStr}${autoLockOn ? "-encrypted" : ""}.json`;
     }
 
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    const now = new Date();
-    const pad = (n: number) => n.toString().padStart(2, "0");
-    const dateStr = `${now.getFullYear().toString().slice(-2)}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
-    const timeStr = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-    a.download = `next-notepad-${dateStr}-${timeStr}${autoLockOn ? "-encrypted" : ""}.json`;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success(autoLockOn ? "암호화된 데이터를 다운로드했습니다." : "데이터를 성공적으로 다운로드했습니다.");
+
+    const msg = mode === "full"
+      ? `전체 데이터 (이력 ${Object.keys(exportData.__history || {}).length}개 포함)를 다운로드했습니다.`
+      : autoLockOn ? "암호화된 데이터를 다운로드했습니다." : "데이터를 성공적으로 다운로드했습니다.";
+    toast.success(msg);
   }, []);
 
   const uploadData = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -421,9 +494,27 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
       try {
         const json = JSON.parse(event.target?.result as string);
         skipPersistRef.current = true;
-        await memoDB.setItem(STORAGE_KEY, json);
 
-        if (json.isEncrypted) {
+        // Extract and restore history if present
+        const historyData = json.__history;
+        const mainData = { ...json };
+        delete mainData.__history;
+
+        await memoDB.setItem(STORAGE_KEY, mainData);
+
+        // Restore history entries
+        if (historyData && typeof historyData === "object") {
+          // Clear existing history first
+          await memoDB.clearHistory();
+          const keys = Object.keys(historyData).sort();
+          // Only keep up to MAX_HISTORY entries
+          const keysToRestore = keys.slice(-MAX_HISTORY);
+          for (const key of keysToRestore) {
+            await memoDB.setHistoryItem(key, historyData[key]);
+          }
+        }
+
+        if (mainData.isEncrypted) {
           setIsEncrypted(true);
           isEncryptedRef.current = true;
           setMemos(DEFAULT_MEMOS);
@@ -431,23 +522,27 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
         } else {
           setIsEncrypted(false);
           isEncryptedRef.current = false;
-          if (json.memos) setMemos(json.memos);
-          if (json.titles) setTitles(json.titles);
+          if (mainData.memos) setMemos(mainData.memos);
+          if (mainData.titles) setTitles(mainData.titles);
         }
-        if (json.settings) setSettings(json.settings);
-        if (json.theme) {
-          setIsDarkMode(json.theme === "dark");
+        if (mainData.settings) setSettings(mainData.settings);
+        if (mainData.theme) {
+          setIsDarkMode(mainData.theme === "dark");
         }
 
-        if (json.layout && apiRef.current) {
+        if (mainData.layout && apiRef.current) {
           try {
-            apiRef.current.fromJSON(json.layout);
+            apiRef.current.fromJSON(mainData.layout);
           } catch (e) {
             console.error("Layout restore failed during upload", e);
           }
         }
 
-        toast.success("데이터를 성공적으로 업로드했습니다.");
+        const historyCount = historyData ? Object.keys(historyData).length : 0;
+        const msg = historyCount > 0
+          ? `데이터를 업로드했습니다. (이력 ${historyCount}개 복원)`
+          : "데이터를 성공적으로 업로드했습니다.";
+        toast.success(msg);
         setTimeout(() => {
           skipPersistRef.current = false;
           window.location.reload();
@@ -554,9 +649,85 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     }
   }, [isEncrypted]);
 
+  // Load a historical date snapshot
+  const loadHistoryDate = useCallback(async (dateKey: string | null) => {
+    const { setViewingDate } = useHistoryStore.getState();
+
+    if (dateKey === null) {
+      // Return to live mode: reload from main storage
+      setViewingDate(null);
+      const savedData = await memoDB.getItem<any>(STORAGE_KEY);
+      if (savedData) {
+        const autoLockOn = useAutoLockStore.getState().autoLockEnabled;
+        const sessionKeyVal = useAutoLockStore.getState().sessionKey;
+        if (savedData.isEncrypted && autoLockOn && sessionKeyVal) {
+          const decrypted = decryptMemosText(savedData.memos, sessionKeyVal);
+          setMemos(decrypted);
+          if (savedData.titles) setTitles(savedData.titles);
+          stateRef.current.memos = decrypted;
+          stateRef.current.titles = savedData.titles || DEFAULT_TITLES;
+        } else if (!savedData.isEncrypted) {
+          if (savedData.memos) setMemos(savedData.memos);
+          if (savedData.titles) setTitles(savedData.titles);
+          stateRef.current.memos = savedData.memos || {};
+          stateRef.current.titles = savedData.titles || {};
+        }
+        if (savedData.layout && apiRef.current) {
+          try { apiRef.current.fromJSON(savedData.layout); } catch (e) { console.error(e); }
+        }
+      }
+      toast.success("오늘 데이터로 돌아왔습니다.");
+      return;
+    }
+
+    // Load history snapshot
+    const snapshot = await memoDB.getHistoryItem<any>(dateKey);
+    if (!snapshot) {
+      toast.error("해당 날짜의 이력이 없습니다.");
+      return;
+    }
+
+    setViewingDate(dateKey);
+
+    // If snapshot is encrypted, we need session key to view
+    const autoLockOn = useAutoLockStore.getState().autoLockEnabled;
+    const sessionKeyVal = useAutoLockStore.getState().sessionKey;
+    if (snapshot.isEncrypted && autoLockOn && sessionKeyVal) {
+      const decrypted = decryptMemosText(snapshot.memos, sessionKeyVal);
+      setMemos(decrypted);
+    } else if (snapshot.isEncrypted) {
+      toast.error("잠금 해제 후 이력을 볼 수 있습니다.");
+      setViewingDate(null);
+      return;
+    } else {
+      setMemos(snapshot.memos || {});
+    }
+
+    if (snapshot.titles) setTitles(snapshot.titles);
+    if (snapshot.layout && apiRef.current) {
+      try { apiRef.current.fromJSON(snapshot.layout); } catch (e) { console.error(e); }
+    }
+    toast.success(`${dateKey} 이력을 불러왔습니다. (읽기 전용)`);
+  }, [apiRef]);
+
+  // Delete a historical date snapshot
+  const deleteHistoryDate = useCallback(async (dateKey: string) => {
+    if (!confirm(`${dateKey} 이력을 삭제하시겠습니까?`)) return;
+
+    try {
+      await memoDB.deleteHistoryItem(dateKey);
+      toast.success(`${dateKey} 이력이 삭제되었습니다.`);
+      // Return to today's data
+      loadHistoryDate(null);
+    } catch (err) {
+      console.error("Failed to delete history", err);
+      toast.error("이력 삭제에 실패했습니다.");
+    }
+  }, [loadHistoryDate]);
+
   return {
     memos, titles, isDarkMode, setIsDarkMode, isMounted, settings, updateSettings,
-    saveStatus, progressWidth, isEncrypted, lastUpdated, persistState, removeMemo, resetData,
-    updateMemo, updateTitle, addMemo, downloadData, uploadData, toggleEncryption
+    saveStatus, progressWidth, isEncrypted, isReadOnly, lastUpdated, persistState, removeMemo, resetData,
+    updateMemo, updateTitle, addMemo, downloadData, uploadData, toggleEncryption, loadHistoryDate, deleteHistoryDate
   };
 }
