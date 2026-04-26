@@ -84,11 +84,17 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
   const total = memoData.items.length;
   const completedCount = memoData.items.filter(i => i.completed).length;
 
+  const isJeonSoMin = settings.fontFamily.includes("JeonSoMin");
+
   return (
     <div
       className="h-full w-full bg-[var(--panel-bg)] flex flex-col overflow-hidden transition-colors duration-300 border border-[var(--border-color)]"
-      style={{ fontFamily: settings.fontFamily }}
+      style={{
+        fontFamily: settings.fontFamily,
+        fontWeight: isJeonSoMin ? "bold" : "normal"
+      }}
     >
+
       <div className="p-6 pb-0">
         <div className="flex items-center justify-between mb-6">
           <div className="text-xs font-medium text-slate-500 bg-slate-500/10 px-2 py-1 rounded-full whitespace-nowrap">
