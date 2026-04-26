@@ -86,6 +86,11 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     const saveVersion = versionRef.current;
 
     try {
+      const oldData = await memoDB.getItem<any>(STORAGE_KEY);
+      if (oldData && oldData.encryptedKey) {
+        currentState.encryptedKey = oldData.encryptedKey;
+      }
+
       await memoDB.setItem(STORAGE_KEY, currentState);
       lastSaveTimeRef.current = Date.now();
       lastSavedVersionRef.current = Math.max(lastSavedVersionRef.current, saveVersion);
@@ -386,6 +391,8 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
           const memosToEncrypt = data.memos || stateRef.current.memos;
           data.memos = encryptMemosText(memosToEncrypt, key);
           data.isEncrypted = true;
+          const { default: CryptoJS } = await import("crypto-js");
+          data.encryptedKey = CryptoJS.AES.encrypt(key, "my-secret-memo-salt").toString();
           await memoDB.setItem(STORAGE_KEY, data);
           setIsEncrypted(true);
           isEncryptedRef.current = true;
@@ -406,6 +413,23 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
         try {
           const data = await memoDB.getItem<any>(STORAGE_KEY);
           if (data && data.isEncrypted && data.memos) {
+            let isValid = false;
+            if (data.encryptedKey) {
+              const { default: CryptoJS } = await import("crypto-js");
+              const bytes = CryptoJS.AES.decrypt(data.encryptedKey, "my-secret-memo-salt");
+              const decKey = bytes.toString(CryptoJS.enc.Utf8);
+              isValid = (decKey === key);
+            } else {
+              isValid = true;
+            }
+
+            if (!isValid) {
+              useLoadingOverlay.getState().hide();
+              useAutoLockStore.getState().setKeyError(true);
+              return;
+            }
+            useAutoLockStore.getState().setKeyError(false);
+
             const decryptedMemos = decryptMemosText(data.memos, key);
 
             if (autoLockOn) {
@@ -423,6 +447,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
               // Normal unlock: save decrypted to IndexedDB
               data.memos = decryptedMemos;
               data.isEncrypted = false;
+              data.encryptedKey = null;
               await memoDB.setItem(STORAGE_KEY, data);
               setIsEncrypted(false);
               isEncryptedRef.current = false;

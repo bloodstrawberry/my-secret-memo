@@ -8,6 +8,8 @@ interface AutoLockState {
   sessionKey: string | null;
   setAutoLockEnabled: (enabled: boolean) => void;
   setSessionKey: (key: string | null) => void;
+  keyError: boolean;
+  setKeyError: (error: boolean) => void;
 }
 
 export const useAutoLockStore = create<AutoLockState>()(
@@ -15,8 +17,10 @@ export const useAutoLockStore = create<AutoLockState>()(
     (set) => ({
       autoLockEnabled: false,
       sessionKey: null,
+      keyError: false,
       setAutoLockEnabled: (enabled: boolean) => set({ autoLockEnabled: enabled }),
       setSessionKey: (key: string | null) => set({ sessionKey: key }),
+      setKeyError: (error: boolean) => set({ keyError: error }),
     }),
     {
       name: 'auto-lock-storage',

@@ -138,7 +138,7 @@ export function SettingsPopover({ onClose }: { onClose: () => void }) {
 }
 
 function AutoLockToggle() {
-  const { autoLockEnabled, setAutoLockEnabled, setSessionKey } = useAutoLockStore();
+  const { autoLockEnabled, setAutoLockEnabled, setSessionKey, keyError, setKeyError } = useAutoLockStore();
   const { memos, titles } = useMemoStore();
 
   const handleToggle = () => {
@@ -159,11 +159,16 @@ function AutoLockToggle() {
         data.memos = encryptMemosText(memosToEncrypt, key);
         data.isEncrypted = true;
         data.autoLock = true;
+        
+        const { default: CryptoJS } = await import("crypto-js");
+        data.encryptedKey = CryptoJS.AES.encrypt(key, "my-secret-memo-salt").toString();
+
         await memoDB.setItem(STORAGE_KEY, data);
 
         // Store key in memory only (NOT persisted)
         setSessionKey(key);
         setAutoLockEnabled(true);
+        setKeyError(false);
 
         toast.success("AUTO LOCK이 활성화되었습니다.");
         // Reload to show locked state
@@ -179,15 +184,33 @@ function AutoLockToggle() {
         const STORAGE_KEY = "my-secret-key";
         const data = await memoDB.getItem<any>(STORAGE_KEY);
         if (data && data.isEncrypted && data.memos) {
+          let isValid = false;
+          if (data.encryptedKey) {
+            const { default: CryptoJS } = await import("crypto-js");
+            const bytes = CryptoJS.AES.decrypt(data.encryptedKey, "my-secret-memo-salt");
+            const decKey = bytes.toString(CryptoJS.enc.Utf8);
+            isValid = (decKey === key);
+          } else {
+            isValid = true; // Fallback
+          }
+
+          if (!isValid) {
+            useLoadingOverlay.getState().hide();
+            setKeyError(true);
+            return;
+          }
+
           const { decryptMemosText } = await import("@/app/components/dockview-memo/utils");
           const decryptedMemos = decryptMemosText(data.memos, key);
           data.memos = decryptedMemos;
           data.isEncrypted = false;
           data.autoLock = false;
+          data.encryptedKey = null;
           await memoDB.setItem(STORAGE_KEY, data);
 
           setSessionKey(null);
           setAutoLockEnabled(false);
+          setKeyError(false);
 
           toast.success("AUTO LOCK이 해제되었습니다.");
           setTimeout(() => window.location.reload(), 800);
@@ -195,6 +218,7 @@ function AutoLockToggle() {
           useLoadingOverlay.getState().hide();
           setSessionKey(null);
           setAutoLockEnabled(false);
+          setKeyError(false);
           toast.info("AUTO LOCK이 해제되었습니다.");
         }
       }, { placeholder: "복호화 키 입력" });
@@ -204,30 +228,44 @@ function AutoLockToggle() {
   return (
     <button
       onClick={handleToggle}
-      className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all active:scale-95 ${
+      disabled={keyError}
+      className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${
         autoLockEnabled
-          ? "bg-amber-500/10 hover:bg-amber-500/20 text-amber-500"
-          : "bg-slate-500/10 hover:bg-slate-500/20 text-slate-400"
+          ? keyError
+            ? "bg-red-500/10 text-red-500 opacity-50 cursor-not-allowed"
+            : "bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 active:scale-95"
+          : "bg-slate-500/10 hover:bg-slate-500/20 text-slate-400 active:scale-95"
       }`}
     >
       <Icon
-        icon={autoLockEnabled ? "material-symbols:lock" : "material-symbols:lock-open-outline"}
+        icon={
+          autoLockEnabled
+            ? keyError
+              ? "mdi:lock-alert-outline"
+              : "material-symbols:lock"
+            : "material-symbols:lock-open-outline"
+        }
         className="w-3.5 h-3.5"
       />
-      {autoLockEnabled ? "AUTO LOCK ON" : "AUTO LOCK OFF"}
+      {autoLockEnabled ? (keyError ? "KEY MISMATCH" : "AUTO LOCK ON") : "AUTO LOCK OFF"}
     </button>
   );
 }
 
 function MemoResetButton() {
-  // We need to import useMemoStore but it might cause circular dependency if we import from dockview-memo
-  // However, in Next.js/React this is usually okay if it's just types/context.
-  // To be safe, I'll use a dynamic approach or just ensure dockview-memo is imported.
   const { resetData } = useMemoStore();
+  const { setSessionKey, setAutoLockEnabled, setKeyError } = useAutoLockStore();
+
+  const handleReset = () => {
+    setSessionKey(null);
+    setAutoLockEnabled(false);
+    setKeyError(false);
+    resetData();
+  };
 
   return (
     <button
-      onClick={resetData}
+      onClick={handleReset}
       className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[10px] font-bold uppercase tracking-wider transition-all active:scale-95"
     >
       <Icon icon="material-symbols:delete-sweep-outline" className="w-3.5 h-3.5" />
