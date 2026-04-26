@@ -138,3 +138,112 @@ export const decryptMemosText = (memos: any, key: string) => {
   }
   return result;
 };
+export const encryptSingleMemo = (id: string, content: any, key: string) => {
+  const processNode = (node: any): any => {
+    if (!node) return node;
+    if (typeof node === "string") {
+      return CryptoJS.AES.encrypt(node, key).toString();
+    }
+    if (Array.isArray(node)) {
+      return node.map(processNode);
+    }
+    if (typeof node !== "object") return node;
+
+    const newNode = { ...node };
+    if (newNode.text && typeof newNode.text === "string") {
+      newNode.text = CryptoJS.AES.encrypt(newNode.text, key).toString();
+    }
+
+    if (Array.isArray(newNode.content)) {
+      newNode.content = newNode.content.map(processNode);
+    }
+    if (Array.isArray(newNode.items)) {
+      newNode.items = newNode.items.map(processNode);
+    }
+    return newNode;
+  };
+
+  if (id.startsWith("spreadsheet") && Array.isArray(content)) {
+    return content.map((sheet: any) => {
+      if (!sheet || typeof sheet !== "object") return sheet;
+      const newSheet = { ...sheet };
+      if (Array.isArray(newSheet.celldata)) {
+        newSheet.celldata = newSheet.celldata.map((cell: any) => {
+          if (!cell || typeof cell !== "object" || cell.v === undefined) return cell;
+          const newCell = { ...cell };
+          const strV = JSON.stringify(newCell.v);
+          newCell.v = CryptoJS.AES.encrypt(strV, key).toString();
+          return newCell;
+        });
+      }
+      return newSheet;
+    });
+  } else {
+    return processNode(content);
+  }
+};
+
+export const decryptSingleMemo = (id: string, content: any, key: string) => {
+  const processNode = (node: any): any => {
+    if (!node) return node;
+    if (typeof node === "string") {
+      try {
+        const bytes = CryptoJS.AES.decrypt(node, key);
+        if (bytes && typeof bytes.toString === "function") {
+          const dec = bytes.toString(CryptoJS.enc.Utf8);
+          return dec || node;
+        }
+      } catch (e) {}
+      return node;
+    }
+    if (Array.isArray(node)) {
+      return node.map(processNode);
+    }
+    if (typeof node !== "object") return node;
+
+    const newNode = { ...node };
+    if (newNode.text && typeof newNode.text === "string") {
+      try {
+        const bytes = CryptoJS.AES.decrypt(newNode.text, key);
+        if (bytes && typeof bytes.toString === "function") {
+          const dec = bytes.toString(CryptoJS.enc.Utf8);
+          if (dec) newNode.text = dec;
+        }
+      } catch (e) {}
+    }
+
+    if (Array.isArray(newNode.content)) {
+      newNode.content = newNode.content.map(processNode);
+    }
+    if (Array.isArray(newNode.items)) {
+      newNode.items = newNode.items.map(processNode);
+    }
+    return newNode;
+  };
+
+  if (id.startsWith("spreadsheet") && Array.isArray(content)) {
+    return content.map((sheet: any) => {
+      if (!sheet || typeof sheet !== "object") return sheet;
+      const newSheet = { ...sheet };
+      if (Array.isArray(newSheet.celldata)) {
+        newSheet.celldata = newSheet.celldata.map((cell: any) => {
+          if (!cell || typeof cell !== "object" || typeof cell.v !== "string") return cell;
+          const newCell = { ...cell };
+          try {
+            const bytes = CryptoJS.AES.decrypt(cell.v, key);
+            if (bytes && typeof bytes.toString === "function") {
+              const dec = bytes.toString(CryptoJS.enc.Utf8);
+              if (dec) {
+                newCell.v = JSON.parse(dec);
+              }
+            }
+          } catch (e) {}
+          return newCell;
+        });
+      }
+      return newSheet;
+    });
+  } else {
+    return processNode(content);
+  }
+};

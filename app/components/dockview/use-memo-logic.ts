@@ -94,13 +94,18 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     const memosToSave = overrides?.memos ?? stateRef.current.memos;
     const titlesToSave = overrides?.titles ?? stateRef.current.titles;
 
+    const visualToggleState = useVisualToggleStore.getState();
     const currentState: any = {
       memos: hasAutoLockSession ? encryptMemosText(memosToSave, sessionKey) : memosToSave,
       titles: titlesToSave,
       settings: overrides?.settings ?? stateRef.current.settings,
       theme: (overrides?.isDarkMode ?? stateRef.current.isDarkMode) ? "dark" : "light",
       layout: layout,
-      visualToggles: useVisualToggleStore.getState().toolbarVisibility,
+      visualToggles: {
+        toolbarVisibility: visualToggleState.toolbarVisibility,
+        tabLocks: visualToggleState.tabLocks,
+        lockedTabs: visualToggleState.lockedTabs,
+      },
       lastUpdated: new Date().toISOString(),
     };
 
@@ -214,7 +219,16 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
           if (dark) document.documentElement.classList.add("dark");
         }
         if (savedData.visualToggles) {
-          useVisualToggleStore.setState({ toolbarVisibility: savedData.visualToggles });
+          if (savedData.visualToggles.toolbarVisibility) {
+            useVisualToggleStore.setState({ 
+              toolbarVisibility: savedData.visualToggles.toolbarVisibility,
+              tabLocks: savedData.visualToggles.tabLocks || {},
+              lockedTabs: savedData.visualToggles.lockedTabs || {}
+            });
+          } else {
+            // Legacy format
+            useVisualToggleStore.setState({ toolbarVisibility: savedData.visualToggles });
+          }
         }
         if (savedData.lastUpdated) {
           setLastUpdated(savedData.lastUpdated);
@@ -407,6 +421,9 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
       setSessionKey(null);
       setAutoLockEnabled(false);
       setKeyError(false);
+
+      // Clear visual toggle locks
+      useVisualToggleStore.setState({ tabLocks: {}, lockedTabs: {}, tabSessionPasswords: {} });
 
       await memoDB.deleteItem(STORAGE_KEY);
       await memoDB.clearHistory();

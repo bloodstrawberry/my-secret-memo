@@ -173,4 +173,53 @@ export const toast = {
       icon: null, 
     });
   },
+  // Custom password prompt toast
+  passwordPrompt: (message: string, onConfirm: (value: string) => void, options?: { placeholder?: string; confirmText?: string; cancelText?: string }) => {
+    sonnerToast.dismiss();
+    let currentValue = "";
+    const toastId = sonnerToast(message, {
+      duration: Infinity,
+      description: (
+        <div className="flex flex-col gap-4 mt-3 w-full">
+          <div className="relative flex items-center group">
+            <Icon icon="material-symbols:lock-outline" className="absolute left-3 w-4 h-4 text-cyan-500 opacity-60 group-focus-within:opacity-100 transition-opacity" />
+            <input
+              type="password"
+              placeholder={options?.placeholder || "비밀번호를 입력하세요..."}
+              className="w-full pl-9 pr-3 py-2.5 bg-slate-500/5 border border-[var(--border-color)] rounded-xl outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500/50 text-sm transition-all shadow-inner"
+              autoFocus
+              onChange={(e) => currentValue = e.target.value}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  onConfirm(currentValue);
+                  sonnerToast.dismiss(toastId);
+                }
+                if (e.key === "Escape") {
+                  sonnerToast.dismiss(toastId);
+                }
+              }}
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => sonnerToast.dismiss(toastId)}
+              className="px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-500/10 transition-colors text-slate-500"
+            >
+              {options?.cancelText || "취소"}
+            </button>
+            <button
+              onClick={() => {
+                onConfirm(currentValue);
+                sonnerToast.dismiss(toastId);
+              }}
+              className="px-6 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 text-white shadow-lg shadow-cyan-500/20 hover:bg-cyan-600 transition-all active:scale-95"
+            >
+              {options?.confirmText || "확인"}
+            </button>
+          </div>
+        </div>
+      ),
+      icon: null,
+    });
+  },
 };

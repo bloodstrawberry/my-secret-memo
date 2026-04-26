@@ -4,13 +4,15 @@ import { MemoContext } from "./context";
 import { Workbook } from "@fortune-sheet/react";
 import "@fortune-sheet/react/dist/index.css";
 import { useVisualToggleStore } from "@/app/store/visual-toggle-store";
+import { LockedView } from "./locked-view";
 
 export function SpreadsheetPanel(props: IDockviewPanelProps) {
   const id = props.api.id;
   const { memos, isReadOnly, updateMemo } = useContext(MemoContext);
   const initialData = useRef(memos[id] || [{ name: "Sheet1", celldata: [] }]);
-  const { toolbarVisibility } = useVisualToggleStore();
+  const { toolbarVisibility, lockedTabs } = useVisualToggleStore();
   const showToolbar = toolbarVisibility[id] !== false;
+  const isLocked = lockedTabs[id] === true;
 
   const handleChange = useCallback((newData: any) => {
     // Block writes in read-only mode
@@ -70,16 +72,22 @@ export function SpreadsheetPanel(props: IDockviewPanelProps) {
 
   return (
     <div className="w-full h-full relative" style={{ background: 'white' }}>
-      {/* Read-only indicator */}
-      {isReadOnly && (
-        <div className="absolute top-0 left-0 right-0 z-10 flex items-center gap-2 px-4 py-1.5 bg-amber-500/10 border-b border-amber-500/20 text-amber-600 text-xs font-bold">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-          읽기 전용
-        </div>
+      {isLocked ? (
+        <LockedView />
+      ) : (
+        <>
+          {/* Read-only indicator */}
+          {isReadOnly && (
+            <div className="absolute top-0 left-0 right-0 z-10 flex items-center gap-2 px-4 py-1.5 bg-amber-500/10 border-b border-amber-500/20 text-amber-600 text-xs font-bold">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+              읽기 전용
+            </div>
+          )}
+          <div className={isReadOnly ? "pt-7 w-full h-full" : "w-full h-full"}>
+            <Workbook {...settings} />
+          </div>
+        </>
       )}
-      <div className={isReadOnly ? "pt-7 w-full h-full" : "w-full h-full"}>
-        <Workbook {...settings} />
-      </div>
     </div>
   );
 }

@@ -2,9 +2,12 @@ import { useState, useEffect, useContext, memo } from "react";
 import { IDockviewPanelHeaderProps } from "dockview";
 import { MemoContext } from "./context";
 import { toast } from "@/app/components/toast";
+import { useVisualToggleStore } from "@/app/store/visual-toggle-store";
 
 export const CustomTab = memo(function CustomTab(props: IDockviewPanelHeaderProps) {
   const { updateTitle } = useContext(MemoContext);
+  const { lockedTabs } = useVisualToggleStore();
+  const isLocked = lockedTabs[props.api.id] === true;
   const [isEditing, setIsEditing] = useState(false);
   const [tempTitle, setTempTitle] = useState(props.api.title || "");
 
@@ -66,6 +69,10 @@ export const CustomTab = memo(function CustomTab(props: IDockviewPanelHeaderProp
       <button
         onClick={(e) => {
           e.stopPropagation();
+          if (isLocked) {
+            toast.error("잠겨있는 탭은 삭제할 수 없습니다. 먼저 잠금을 해제해 주세요.");
+            return;
+          }
           const isTodo = props.api.id.startsWith("todo");
           const message = isTodo 
             ? "탭을 종료하면 To-Do List가 삭제됩니다. 정말 삭제하시겠습니까?"

@@ -3,6 +3,8 @@ import { IDockviewPanelProps } from "dockview";
 import { Icon } from "@iconify/react";
 import { MemoContext } from "./context";
 import { useSettings } from "@/app/context/settings-context";
+import { useVisualToggleStore } from "@/app/store/visual-toggle-store";
+import { LockedView } from "./locked-view";
 import {
   DndContext,
   closestCenter,
@@ -137,6 +139,8 @@ const SortableTodoItem = memo(function SortableTodoItem({
 export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelProps) {
   const { memos, isReadOnly, updateMemo } = useContext(MemoContext);
   const { settings } = useSettings();
+  const { lockedTabs } = useVisualToggleStore();
+  const isLocked = lockedTabs[props.api.id] === true;
   const memoData: TodoData = memos[props.api.id] || { items: [] };
   const [inputValue, setInputValue] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -236,87 +240,91 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
 
   return (
     <div
-      className="h-full w-full bg-[var(--panel-bg)] flex flex-col overflow-hidden transition-colors duration-300 border border-[var(--border-color)]"
+      className="h-full w-full bg-[var(--panel-bg)] flex flex-col overflow-hidden transition-colors duration-300 border border-[var(--border-color)] relative"
       style={{
         fontFamily: settings.fontFamily,
         fontWeight: isJeonSoMin ? "bold" : "normal"
       }}
     >
-
-      {/* Read-only indicator */}
-      {isReadOnly && (
-        <div className="flex items-center gap-2 px-6 py-1.5 bg-amber-500/10 border-b border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-bold">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-          읽기 전용
-        </div>
-      )}
-
-      <div className="p-6 pb-0">
-        <div className="flex items-center justify-between mb-6">
-          <div className="text-xs font-medium text-slate-500 bg-slate-500/10 px-2 py-1 rounded-full whitespace-nowrap">
-            {completedCount} / {total} Completed
-          </div>
-        </div>
-
-        <div className="flex gap-2 mb-6">
-          <input
-            type="text"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={isReadOnly ? "읽기 전용 모드" : "What needs to be done?"}
-            disabled={isReadOnly}
-            className="flex-1 bg-transparent border-b border-[var(--border-color)] focus:border-cyan-500 pb-2 outline-none text-[var(--foreground)] transition-colors min-w-0 disabled:opacity-50 disabled:cursor-not-allowed"
-          />
-          <button
-            onClick={handleAdd}
-            disabled={!inputValue.trim() || isReadOnly}
-            className="p-2 bg-cyan-500 text-white rounded-xl hover:bg-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-sm shadow-cyan-500/20 flex-shrink-0"
-          >
-            <Icon icon="mdi:plus" className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-auto custom-scrollbar">
-        <div className="px-6 pb-6 space-y-2">
-          {memoData.items.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-slate-400 opacity-60">
-              <Icon icon="mdi:check-all" className="w-12 h-12 mb-2" />
-              <p className="text-sm font-medium">No tasks yet.</p>
+      {isLocked ? (
+        <LockedView />
+      ) : (
+        <>
+          {/* Read-only indicator */}
+          {isReadOnly && (
+            <div className="flex items-center gap-2 px-6 py-1.5 bg-amber-500/10 border-b border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-bold">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+              읽기 전용
             </div>
-          ) : (
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-              modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}
-            >
-              <SortableContext
-                items={memoData.items.map(i => i.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                {memoData.items.map((item) => (
-                  <SortableTodoItem
-                    key={item.id}
-                    item={item}
-                    editingId={editingId}
-                    editingText={editingText}
-                    setEditingText={setEditingText}
-                    handleEditStart={handleEditStart}
-                    handleEditSave={handleEditSave}
-                    handleEditKeyDown={handleEditKeyDown}
-                    toggleCompleted={toggleCompleted}
-                    deleteItem={deleteItem}
-                    isReadOnly={isReadOnly}
-                  />
-                ))}
-              </SortableContext>
-            </DndContext>
           )}
-        </div>
-      </div>
+
+          <div className="p-6 pb-0">
+            <div className="flex items-center justify-between mb-6">
+              <div className="text-xs font-medium text-slate-500 bg-slate-500/10 px-2 py-1 rounded-full whitespace-nowrap">
+                {completedCount} / {total} Completed
+              </div>
+            </div>
+
+            <div className="flex gap-2 mb-6">
+              <input
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={isReadOnly ? "읽기 전용 모드" : "What needs to be done?"}
+                disabled={isReadOnly}
+                className="flex-1 bg-transparent border-b border-[var(--border-color)] focus:border-cyan-500 pb-2 outline-none text-[var(--foreground)] transition-colors min-w-0 disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+              <button
+                onClick={handleAdd}
+                disabled={!inputValue.trim() || isReadOnly}
+                className="p-2 bg-cyan-500 text-white rounded-xl hover:bg-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-sm shadow-cyan-500/20 flex-shrink-0"
+              >
+                <Icon icon="mdi:plus" className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-auto custom-scrollbar">
+            <div className="px-6 pb-6 space-y-2">
+              {memoData.items.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-slate-400 opacity-60">
+                  <Icon icon="mdi:check-all" className="w-12 h-12 mb-2" />
+                  <p className="text-sm font-medium">No tasks yet.</p>
+                </div>
+              ) : (
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                  modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}
+                >
+                  <SortableContext
+                    items={memoData.items.map(i => i.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {memoData.items.map((item) => (
+                      <SortableTodoItem
+                        key={item.id}
+                        item={item}
+                        editingId={editingId}
+                        editingText={editingText}
+                        setEditingText={setEditingText}
+                        handleEditStart={handleEditStart}
+                        handleEditSave={handleEditSave}
+                        handleEditKeyDown={handleEditKeyDown}
+                        toggleCompleted={toggleCompleted}
+                        deleteItem={deleteItem}
+                        isReadOnly={isReadOnly}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 });
-
