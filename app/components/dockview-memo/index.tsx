@@ -33,16 +33,20 @@ export default function DockviewMemo() {
     updateMemo, updateTitle, addMemo, downloadData, uploadData, toggleEncryption
   } = useMemoLogic(apiRef);
 
-  const { onReady } = useDockviewManager(apiRef, removeMemo, persistState);
+  const { onReady, panelIds } = useDockviewManager(apiRef, removeMemo, persistState);
 
-  const totalWords = useMemo(() => Object.values(memos).reduce((acc, curr) => {
+  const visibleMemos = useMemo(() => {
+    return panelIds.map(id => memos[id]).filter(Boolean);
+  }, [panelIds, memos]);
+
+  const totalWords = useMemo(() => visibleMemos.reduce((acc, curr) => {
     const text = extractTextFromJSON(curr).trim();
     return acc + (text ? text.split(/\s+/).length : 0);
-  }, 0), [memos]);
+  }, 0), [visibleMemos]);
 
-  const totalChars = useMemo(() => Object.values(memos).reduce((acc, curr) => {
+  const totalChars = useMemo(() => visibleMemos.reduce((acc, curr) => {
     return acc + extractTextFromJSON(curr).replace(/\n/g, "").length;
-  }, 0), [memos]);
+  }, 0), [visibleMemos]);
 
   if (!isMounted) return null;
 
@@ -86,7 +90,7 @@ export default function DockviewMemo() {
           <Footer
             totalWords={totalWords}
             totalChars={totalChars}
-            memoCount={Object.keys(memos).length}
+            memoCount={panelIds.length}
             lastUpdated={lastUpdated}
           />
         </main>

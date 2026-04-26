@@ -10,7 +10,7 @@ export function extractTextFromJSON(node: any): string {
     text += node.content.map((child: any) => extractTextFromJSON(child)).join("");
   }
   // Add newline between block-level nodes for proper word separation
-  if (node.type && ["paragraph", "heading", "bulletList", "orderedList", "listItem", "blockquote", "codeBlock", "hardBreak"].includes(node.type)) {
+  if (node.type && ["paragraph", "heading", "bulletList", "orderedList", "listItem", "taskList", "taskItem", "blockquote", "codeBlock", "hardBreak"].includes(node.type)) {
     text += "\n";
   }
   return text;

@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { DockviewReadyEvent } from "dockview";
 import { memoDB } from "../../library/indexDB";
 import { DEFAULT_TITLES, STORAGE_KEYS } from "@/app/constants/default";
@@ -9,11 +9,13 @@ export function useDockviewManager(
   persistState: () => void
 ) {
   const STORAGE_KEY = "my-secret-key";
+  const [panelIds, setPanelIds] = useState<string[]>([]);
 
   const onReady = useCallback((event: DockviewReadyEvent) => {
     apiRef.current = event.api;
 
     event.api.onDidLayoutChange(() => {
+      setPanelIds(event.api.panels.map(p => p.id));
       persistState();
     });
 
@@ -74,10 +76,12 @@ export function useDockviewManager(
           }
         }
       }
+      
+      setPanelIds(event.api.panels.map(p => p.id));
     };
 
     initializeLayout();
   }, [removeMemo, persistState, apiRef]);
 
-  return { onReady };
+  return { onReady, panelIds };
 }
