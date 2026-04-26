@@ -61,7 +61,7 @@ export const RightControls = (props: IDockviewHeaderActionsProps) => {
 
   return (
     <div className="flex items-center px-2 h-full gap-0.5">
-      {activePanelId && (
+      {activePanelId && !activePanelId.startsWith("todo") && (
         <HeaderIcon
           title={isVisible ? "편집 도구 숨기기" : "편집 도구 보이기"}
           icon={isVisible ? "material-symbols:edit-off-outline" : "material-symbols:edit-outline"}
