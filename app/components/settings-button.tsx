@@ -53,7 +53,7 @@ export function SettingsPopover({ onClose }: { onClose: () => void }) {
           <div className="space-y-1.5">
             <div className="flex justify-between text-[10px] font-bold uppercase tracking-tighter opacity-60">
               <span>Line Height</span>
-              <span>{settings.lineHeight}</span>
+              <span>{settings.lineHeight}px</span>
             </div>
             <input
               type="range"
@@ -163,7 +163,7 @@ function AutoLockToggle() {
         data.memos = encryptMemosText(memosToEncrypt, key);
         data.isEncrypted = true;
         data.autoLock = true;
-        
+
         const { default: CryptoJS } = await import("crypto-js");
         data.encryptedKey = CryptoJS.AES.encrypt(key, "my-secret-memo-salt").toString();
 
@@ -233,15 +233,14 @@ function AutoLockToggle() {
     <button
       onClick={handleToggle}
       disabled={isDisabled}
-      className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${
-        autoLockEnabled
+      className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${autoLockEnabled
           ? isDisabled
             ? "bg-red-500/10 text-red-500 opacity-50 cursor-not-allowed"
             : "bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 active:scale-95"
           : isDisabled
             ? "bg-slate-500/10 text-slate-400 opacity-50 cursor-not-allowed"
             : "bg-slate-500/10 hover:bg-slate-500/20 text-slate-400 active:scale-95"
-      }`}
+        }`}
     >
       <Icon
         icon={
@@ -255,8 +254,8 @@ function AutoLockToggle() {
         }
         className="w-3.5 h-3.5"
       />
-      {autoLockEnabled 
-        ? (keyError ? "KEY MISMATCH" : "AUTO LOCK ON") 
+      {autoLockEnabled
+        ? (keyError ? "KEY MISMATCH" : "AUTO LOCK ON")
         : "AUTO LOCK OFF"}
     </button>
   );
@@ -264,19 +263,67 @@ function AutoLockToggle() {
 
 function MemoResetButton() {
   const { resetData } = useMemoStore();
+  const [isExpanded, setIsExpanded] = useState(false);
 
-  const handleReset = () => {
-    resetData();
-  };
+  if (!isExpanded) {
+    return (
+      <button
+        onClick={() => setIsExpanded(true)}
+        className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[10px] font-bold uppercase tracking-wider transition-all active:scale-95"
+      >
+        <Icon icon="material-symbols:delete-sweep-outline" className="w-3.5 h-3.5" />
+        초기화
+      </button>
+    );
+  }
 
   return (
-    <button
-      onClick={handleReset}
-      className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[10px] font-bold uppercase tracking-wider transition-all active:scale-95"
+    <motion.div
+      initial={{ opacity: 0, y: 5, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      className="flex flex-col gap-1 p-2 bg-slate-500/5 rounded-2xl border border-[var(--border-color)] shadow-sm"
     >
-      <Icon icon="material-symbols:delete-sweep-outline" className="w-3.5 h-3.5" />
-      초기화
-    </button>
+      <div className="flex justify-between items-center px-2 py-1.5 mb-1">
+        <span className="text-[10px] font-bold text-[var(--foreground)] opacity-70 uppercase tracking-[0.15em]">Reset Mode</span>
+        <button onClick={() => setIsExpanded(false)} className="p-1 hover:bg-slate-500/10 rounded-full transition-colors">
+          <Icon icon="material-symbols:close" className="w-3.5 h-3.5 text-[var(--foreground)] opacity-40" />
+        </button>
+      </div>
+
+      <button
+        onClick={() => { resetData("options"); setIsExpanded(false); }}
+        className="flex items-center gap-4 px-4 py-2.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 transition-all text-sm font-bold text-left w-full group"
+      >
+        <Icon icon="material-symbols:settings-backup-restore" className="w-5 h-5 opacity-80 group-hover:opacity-100 transition-opacity" />
+        <span className="whitespace-nowrap">옵션 초기화</span>
+      </button>
+
+      <button
+        onClick={() => { resetData("memos"); setIsExpanded(false); }}
+        className="flex items-center gap-4 px-4 py-2.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-500 transition-all text-sm font-bold text-left w-full group"
+      >
+        <Icon icon="material-symbols:description-outline" className="w-5 h-5 opacity-80 group-hover:opacity-100 transition-opacity" />
+        <span className="whitespace-nowrap">메모장 초기화</span>
+      </button>
+
+      <button
+        onClick={() => { resetData("todos"); setIsExpanded(false); }}
+        className="flex items-center gap-4 px-4 py-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 transition-all text-sm font-bold text-left w-full group"
+      >
+        <Icon icon="mdi:format-list-checks" className="w-5 h-5 opacity-80 group-hover:opacity-100 transition-opacity" />
+        <span className="whitespace-nowrap">To-Do List 초기화</span>
+      </button>
+
+      <div className="my-1 border-t border-[var(--border-color)] opacity-30" />
+
+      <button
+        onClick={() => { resetData("all"); setIsExpanded(false); }}
+        className="flex items-center gap-4 px-4 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 transition-all text-sm font-bold text-left w-full group"
+      >
+        <Icon icon="material-symbols:warning-outline" className="w-5 h-5 opacity-80 group-hover:opacity-100 transition-opacity" />
+        <span className="whitespace-nowrap">전체 초기화</span>
+      </button>
+    </motion.div>
   );
 }
 

@@ -268,8 +268,63 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     persistState({ titles: nextTitles, memos: nextMemos });
   }, [persistState]);
 
-  const resetData = useCallback(() => {
-    toast.confirm("모든 메모 데이터와 설정을 초기화하시겠습니까?", async () => {
+  const resetData = useCallback((type: "options" | "memos" | "todos" | "all" = "all") => {
+    const messages = {
+      options: "모든 설정을 초기화하시겠습니까?",
+      memos: "모든 메모를 초기화하시겠습니까?",
+      todos: "모든 To-Do List를 초기화하시겠습니까?",
+      all: "모든 메모 데이터와 설정을 초기화하시겠습니까?"
+    };
+
+    toast.confirm(messages[type], async () => {
+      if (type === "options") {
+        setSettings(DEFAULT_SETTINGS);
+        persistState({ settings: DEFAULT_SETTINGS });
+        toast.success("설정이 초기화되었습니다.");
+        return;
+      }
+
+      if (type === "memos") {
+        const nextMemos = { ...stateRef.current.memos };
+        const nextTitles = { ...stateRef.current.titles };
+        Object.keys(nextMemos).forEach(id => {
+          if (id.startsWith("memo")) delete nextMemos[id];
+        });
+        Object.keys(nextTitles).forEach(id => {
+          if (id.startsWith("memo")) delete nextTitles[id];
+        });
+        Object.assign(nextMemos, DEFAULT_MEMOS);
+        Object.assign(nextTitles, DEFAULT_TITLES);
+        
+        setMemos(nextMemos);
+        setTitles(nextTitles);
+        persistState({ memos: nextMemos, titles: nextTitles });
+        localStorage.removeItem(STORAGE_KEYS.LAYOUT);
+        toast.success("메모장이 초기화되었습니다.");
+        setTimeout(() => window.location.reload(), 500);
+        return;
+      }
+
+      if (type === "todos") {
+        const nextMemos = { ...stateRef.current.memos };
+        const nextTitles = { ...stateRef.current.titles };
+        Object.keys(nextMemos).forEach(id => {
+          if (id.startsWith("todo")) delete nextMemos[id];
+        });
+        Object.keys(nextTitles).forEach(id => {
+          if (id.startsWith("todo")) delete nextTitles[id];
+        });
+        
+        setMemos(nextMemos);
+        setTitles(nextTitles);
+        persistState({ memos: nextMemos, titles: nextTitles });
+        localStorage.removeItem(STORAGE_KEYS.LAYOUT);
+        toast.success("To-Do List가 초기화되었습니다.");
+        setTimeout(() => window.location.reload(), 500);
+        return;
+      }
+
+      // Default: all
       skipPersistRef.current = true;
 
       // Clear auto-lock store states after confirmation
@@ -285,7 +340,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
       localStorage.removeItem(STORAGE_KEYS.SETTINGS);
       window.location.reload();
     });
-  }, []);
+  }, [persistState]);
 
   const addMemo = useCallback((type: "memo" | "todo" = "memo") => {
     if (!apiRef.current) return;
