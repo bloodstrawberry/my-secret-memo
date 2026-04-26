@@ -57,7 +57,7 @@ export default function DockviewMemo() {
 
   return (
     <SettingsContext.Provider value={{ settings, updateSettings }}>
-      <MemoContext.Provider value={{ memos, titles, isEncrypted, isReadOnly, updateMemo, updateTitle, removeMemo, resetData }}>
+      <MemoContext.Provider value={{ memos, titles, isEncrypted, isReadOnly, updateMemo, updateTitle, removeMemo, resetData, toggleEncryption }}>
         <main className="h-screen w-screen bg-[var(--background)] overflow-hidden flex flex-col font-sans relative transition-colors duration-300">
           {/* Background blobs */}
           <div className="fixed inset-0 overflow-hidden pointer-events-none opacity-5 dark:opacity-20 transition-opacity duration-500">

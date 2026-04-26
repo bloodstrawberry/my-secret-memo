@@ -14,7 +14,7 @@ export const EditorPanel = memo(function EditorPanel(props: IDockviewPanelProps)
   return (
     <div className="h-full w-full bg-[var(--panel-bg)] p-0 flex flex-col overflow-hidden transition-colors duration-300 border border-[var(--border-color)] relative">
       {isLocked ? (
-        <LockedView />
+        <LockedView panelId={props.api.id} />
       ) : (
         <MarkdownEditor
           value={memo}

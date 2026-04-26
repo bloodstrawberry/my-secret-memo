@@ -9,6 +9,7 @@ export const MemoContext = createContext<{
   updateTitle: (id: string, title: string) => void;
   removeMemo: (id: string) => void;
   resetData: (type?: "options" | "memos" | "todos" | "all") => void;
+  toggleEncryption: () => void;
 }>({
   memos: {},
   titles: {},
@@ -17,7 +18,8 @@ export const MemoContext = createContext<{
   updateMemo: () => { },
   updateTitle: () => { },
   removeMemo: () => { },
-  resetData: () => { }
+  resetData: () => { },
+  toggleEncryption: () => { }
 });
 
 export const useMemoStore = () => useContext(MemoContext);

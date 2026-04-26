@@ -73,7 +73,7 @@ export function SpreadsheetPanel(props: IDockviewPanelProps) {
   return (
     <div className="w-full h-full relative" style={{ background: 'white' }}>
       {isLocked ? (
-        <LockedView />
+        <LockedView panelId={id} />
       ) : (
         <>
           {/* Read-only indicator */}

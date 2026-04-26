@@ -247,7 +247,7 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
       }}
     >
       {isLocked ? (
-        <LockedView />
+        <LockedView panelId={props.api.id} />
       ) : (
         <>
           {/* Read-only indicator */}
