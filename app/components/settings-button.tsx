@@ -211,6 +211,7 @@ export function SettingsPopover({ onClose }: { onClose: () => void }) {
   );
 }
 
+
 function AutoLockToggle() {
   const { autoLockEnabled, setAutoLockEnabled, setSessionKey, keyError, setKeyError, sessionKey } = useAutoLockStore();
   const { memos, titles, isEncrypted } = useMemoStore();

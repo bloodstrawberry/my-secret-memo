@@ -76,7 +76,7 @@ export function useDockviewManager(
           }
         }
       }
-      
+
       setPanelIds(event.api.panels.map(p => p.id));
     };
 
