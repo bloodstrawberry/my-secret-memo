@@ -43,14 +43,14 @@ export const CustomTab = memo(function CustomTab(props: IDockviewPanelHeaderProp
     >
       <div className="relative flex items-center min-w-[20px] max-w-[150px]">
         {/* Ghost element to drive the width dynamically */}
-        <span className="invisible font-bold tracking-widest uppercase whitespace-pre px-0.5" style={{ fontSize: 'var(--dv-tab-font-size)' }}>
+        <span className="invisible font-bold tracking-widest whitespace-pre px-0.5" style={{ fontSize: 'var(--dv-tab-font-size)' }}>
           {tempTitle || " "}
         </span>
 
         {isEditing ? (
           <input
             autoFocus
-            className="absolute inset-y-0 left-0 bg-transparent font-bold tracking-widest uppercase outline-none border-none text-[var(--foreground)] p-0 m-0 w-full leading-none"
+            className="absolute inset-y-0 left-0 bg-transparent font-bold tracking-widest outline-none border-none text-[var(--foreground)] p-0 m-0 w-full leading-none"
             style={{ fontSize: 'var(--dv-tab-font-size)' }}
             value={tempTitle}
             onChange={(e) => setTempTitle(e.target.value)}
@@ -61,7 +61,7 @@ export const CustomTab = memo(function CustomTab(props: IDockviewPanelHeaderProp
             onMouseDown={(e) => e.stopPropagation()}
           />
         ) : (
-          <span className="absolute inset-y-0 left-0 truncate w-full font-bold tracking-widest uppercase text-[var(--foreground)] opacity-70 group-hover:opacity-100 transition-opacity flex items-center" style={{ fontSize: 'var(--dv-tab-font-size)' }}>
+          <span className="absolute inset-y-0 left-0 truncate w-full font-bold tracking-widest text-[var(--foreground)] opacity-70 group-hover:opacity-100 transition-opacity flex items-center" style={{ fontSize: 'var(--dv-tab-font-size)' }}>
             {props.api.title}
           </span>
         )}

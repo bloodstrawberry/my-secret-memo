@@ -2,6 +2,7 @@ import { useContext, useState, memo, KeyboardEvent, useMemo } from "react";
 import { IDockviewPanelProps } from "dockview";
 import { Icon } from "@iconify/react";
 import { MemoContext } from "./context";
+import { toast } from "@/app/components/toast";
 import { useSettings } from "@/app/context/settings-context";
 import { useVisualToggleStore } from "@/app/store/visual-toggle-store";
 import { LockedView } from "./locked-view";
@@ -217,8 +218,10 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
   };
 
   const deleteItem = (id: string) => {
-    const newItems = memoData.items.filter(item => item.id !== id);
-    updateItems(newItems);
+    toast.confirm("정말 이 항목을 삭제하시겠습니까?", () => {
+      const newItems = memoData.items.filter(item => item.id !== id);
+      updateItems(newItems);
+    }, { type: "danger", confirmText: "삭제", cancelText: "취소" });
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
