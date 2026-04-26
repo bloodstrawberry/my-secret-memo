@@ -2,6 +2,7 @@ import { IDockviewHeaderActionsProps } from 'dockview';
 import * as React from 'react';
 import { Icon } from '@iconify/react';
 import { useVisualToggleStore } from "@/app/store/visual-toggle-store";
+import { toast } from "@/app/components/toast";
 
 const HeaderIcon = (props: {
   icon: string;
@@ -78,7 +79,18 @@ export const RightControls = (props: IDockviewHeaderActionsProps) => {
       <HeaderIcon
         title="Close Panel"
         icon="material-symbols:close"
-        onClick={() => activePanel?.api.close()}
+        onClick={() => {
+          if (activePanel) {
+            const isTodo = activePanel.id.startsWith("todo");
+            const message = isTodo 
+              ? "탭을 종료하면 To-Do List가 삭제됩니다. 정말 삭제하시겠습니까?"
+              : "탭을 종료하면 메모가 삭제됩니다. 정말 삭제하시겠습니까?";
+
+            toast.confirm(message, () => {
+              activePanel.api.close();
+            }, { type: "danger", confirmText: "삭제", cancelText: "유지" });
+          }
+        }}
       />
     </div>
   );

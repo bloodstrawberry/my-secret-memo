@@ -183,6 +183,11 @@ body {
   display: none;
 }
 
+/* Hide default Dockview close button */
+.dockview-theme-memo .dv-tab-close-button {
+  display: none !important;
+}
+
 .dockview-theme-memo .dv-watermark {
   background-color: var(--dv-bg);
 }
