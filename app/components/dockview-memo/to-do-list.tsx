@@ -40,7 +40,7 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
   };
 
   const toggleCompleted = (id: string) => {
-    const newItems = memoData.items.map(item => 
+    const newItems = memoData.items.map(item =>
       item.id === id ? { ...item, completed: !item.completed } : item
     );
     updateItems(newItems);
@@ -57,7 +57,6 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
   return (
     <div className="h-full w-full bg-[var(--panel-bg)] p-6 flex flex-col overflow-hidden transition-colors duration-300 border border-[var(--border-color)]">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-[var(--foreground)]">To-Do List</h2>
         <div className="text-xs font-medium text-slate-500 bg-slate-500/10 px-2 py-1 rounded-full">
           {completedCount} / {total} Completed
         </div>
@@ -91,23 +90,21 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
           memoData.items.map((item) => (
             <div
               key={item.id}
-              className={`group flex items-center gap-3 p-3 rounded-xl border transition-all ${
-                item.completed
-                  ? "bg-slate-500/5 border-transparent text-slate-400"
-                  : "bg-[var(--background)] border-[var(--border-color)] hover:border-cyan-500/50 text-[var(--foreground)] shadow-sm"
-              }`}
+              className={`group flex items-center gap-3 p-3 rounded-xl border transition-all ${item.completed
+                ? "bg-slate-500/5 border-transparent text-slate-400"
+                : "bg-[var(--background)] border-[var(--border-color)] hover:border-cyan-500/50 text-[var(--foreground)] shadow-sm"
+                }`}
             >
               <button
                 onClick={() => toggleCompleted(item.id)}
-                className={`flex-shrink-0 w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${
-                  item.completed
-                    ? "bg-emerald-500 border-emerald-500 text-white"
-                    : "border-slate-400 hover:border-cyan-500 text-transparent hover:text-cyan-500/30"
-                }`}
+                className={`flex-shrink-0 w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${item.completed
+                  ? "bg-emerald-500 border-emerald-500 text-white"
+                  : "border-slate-400 hover:border-cyan-500 text-transparent hover:text-cyan-500/30"
+                  }`}
               >
                 <Icon icon="mdi:check" className="w-4 h-4" />
               </button>
-              
+
               <span className={`flex-1 break-words text-sm transition-all ${item.completed ? "line-through opacity-70" : ""}`}>
                 {item.text}
               </span>

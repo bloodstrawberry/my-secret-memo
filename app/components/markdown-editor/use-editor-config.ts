@@ -23,23 +23,29 @@ export function useEditorConfig({ value, onChange, onBlur, placeholder }: Markdo
     setIsMounted(true);
   }, []);
 
-  // Track the last value we sent to the parent to distinguish between internal and external changes
-  const lastSentValueRef = useRef<string>(JSON.stringify(value));
-  const lastEmitTimeRef = useRef<number>(Date.now());
+  // Store callbacks in refs to avoid stale closures in useEditor/debounce
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const onBlurRef = useRef(onBlur);
+  onBlurRef.current = onBlur;
+
+  // Flag: true while the editor itself is the source of changes (prevents sync loop)
+  const isLocalChangeRef = useRef(false);
 
   // Debounced version of onChange to avoid constant parent re-renders
   const debouncedOnChange = useRef(
     debounce((val: EditorJSON) => {
-      lastSentValueRef.current = JSON.stringify(val);
-      lastEmitTimeRef.current = Date.now();
-      onChange(val);
-    }, 600)
+      isLocalChangeRef.current = true;
+      onChangeRef.current(val);
+    }, 400)
   ).current;
 
   // Cleanup on unmount
   useEffect(() => {
     return () => debouncedOnChange.cancel();
   }, [debouncedOnChange]);
+
+  const lastEmitTimeRef = useRef<number>(Date.now());
 
   const editor = useEditor({
     extensions: [
@@ -90,9 +96,9 @@ export function useEditorConfig({ value, onChange, onBlur, placeholder }: Markdo
       // If more than 2.5 seconds passed since last emit, force an update (maxWait)
       if (now - lastEmitTimeRef.current >= 2500) {
         debouncedOnChange.cancel();
-        lastSentValueRef.current = JSON.stringify(json);
         lastEmitTimeRef.current = now;
-        onChange(json);
+        isLocalChangeRef.current = true;
+        onChangeRef.current(json);
       } else {
         debouncedOnChange(json);
       }
@@ -100,29 +106,38 @@ export function useEditorConfig({ value, onChange, onBlur, placeholder }: Markdo
     onBlur: ({ editor }) => {
       const json = editor.getJSON();
       debouncedOnChange.cancel();
-      lastSentValueRef.current = JSON.stringify(json);
-      onBlur?.(json);
+      isLocalChangeRef.current = true;
+      onBlurRef.current?.(json);
     },
     editorProps: {
       attributes: {
-        class: `prose dark:prose-invert max-w-none focus:outline-none h-full ${EDITOR_PADDING} text-[var(--foreground)] mx-auto`,
+        class: `prose dark:prose-invert max-w-none focus:outline-none min-h-full ${EDITOR_PADDING} text-[var(--foreground)] mx-auto`,
       },
     },
     immediatelyRender: false,
   });
 
-  // Sync external value changes (compare by JSON string to avoid unnecessary updates)
+  // Sync external value changes ONLY — never re-apply our own edits back
   useEffect(() => {
-    if (editor && isMounted && value !== undefined) {
-      const incomingJSON = typeof value === 'string' ? value : JSON.stringify(value);
-      const currentJSON = JSON.stringify(editor.getJSON());
+    if (!editor || !isMounted || value === undefined) return;
 
-      // ONLY set content if the incoming value is different from current editor content
-      // AND it's different from the last value we sent to the parent (meaning it's an external change)
-      if (incomingJSON !== currentJSON && incomingJSON !== lastSentValueRef.current) {
-        editor.commands.setContent(value);
-        lastSentValueRef.current = incomingJSON;
-      }
+    // If this value change was triggered by our own onUpdate/onBlur, skip it entirely
+    if (isLocalChangeRef.current) {
+      isLocalChangeRef.current = false;
+      return;
+    }
+
+    // Never interrupt the user while they are actively typing or composing (IME)
+    if (editor.isFocused || editor.view.composing) {
+      return;
+    }
+
+    // This is a genuine external change (e.g. file upload, decrypt, reset) — apply it
+    const incomingJSON = typeof value === "string" ? value : JSON.stringify(value);
+    const currentJSON = JSON.stringify(editor.getJSON());
+
+    if (incomingJSON !== currentJSON) {
+      editor.commands.setContent(value);
     }
   }, [value, editor, isMounted]);
 
@@ -132,7 +147,7 @@ export function useEditorConfig({ value, onChange, onBlur, placeholder }: Markdo
       editor.setOptions({
         editorProps: {
           attributes: {
-            class: `prose dark:prose-invert max-w-none focus:outline-none h-full ${EDITOR_PADDING} text-[var(--foreground)] mx-auto`,
+            class: `prose dark:prose-invert max-w-none focus:outline-none min-h-full ${EDITOR_PADDING} text-[var(--foreground)] mx-auto`,
           },
         },
       });

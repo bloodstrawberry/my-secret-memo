@@ -57,9 +57,9 @@ export function SettingsPopover({ onClose }: { onClose: () => void }) {
             </div>
             <input
               type="range"
-              min="0"
-              max="2.5"
-              step="0.1"
+              min="1"
+              max="3"
+              step="0.05"
               value={parseFloat(settings.lineHeight)}
               onChange={(e) => updateSettings({ lineHeight: e.target.value })}
               className="w-full h-1.5 bg-cyan-500/10 rounded-lg appearance-none cursor-pointer accent-cyan-500"
