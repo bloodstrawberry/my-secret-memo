@@ -66,14 +66,14 @@ export function Header({
         <div>
           <h1 className="text-xl font-black tracking-tight text-[var(--foreground)] flex items-center gap-2">
             NEXT NOTEPAD
-            <span className="px-1.5 py-0.5 rounded text-[10px] bg-cyan-500/10 text-cyan-500 border border-cyan-500/20 font-mono font-medium">PRO</span>
+            <span className="px-1.5 py-0.5 rounded text-[10px] bg-cyan-500/10 text-cyan-500 border border-cyan-500/20 font-mono font-medium">v1.0.1</span>
 
             <SettingsButton />
 
             {/* History Calendar - between Settings and Lock */}
-            <HistoryCalendar 
-              onSelectDate={loadHistoryDate} 
-              disabled={isEncrypted} 
+            <HistoryCalendar
+              onSelectDate={loadHistoryDate}
+              disabled={isEncrypted}
             />
 
             {isReadOnly && viewingDate && (
@@ -115,7 +115,7 @@ export function Header({
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                 <span className="text-amber-500 font-bold">History: {viewingDate} (읽기 전용)</span>
               </>
-            ) : saveStatus === "saving" ? (
+            ) : (saveStatus === "saving" && !isEncrypted) ? (
               <>
                 <div className="flex items-center gap-1.5 min-w-[80px]">
                   <div className="relative w-2 h-2">
@@ -133,7 +133,7 @@ export function Header({
                   </div>
                 </div>
               </>
-            ) : saveStatus === "success" ? (
+            ) : (saveStatus === "success" && !isEncrypted) ? (
               <>
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-emerald-500 font-bold">Saved Successfully</span>

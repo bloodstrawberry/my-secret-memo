@@ -34,7 +34,7 @@ export function SpreadsheetPanel(props: IDockviewPanelProps) {
       return data;
     }
   }, [id, memos, isEncrypted]);
-  
+
   const initialData = useRef(getInitialData());
 
   // Detect external data changes (decrypt, upload, etc.) and reinitialize Workbook
@@ -69,7 +69,7 @@ export function SpreadsheetPanel(props: IDockviewPanelProps) {
     // Also, we remove 'data' to prevent saving massive arrays with nulls to IndexedDB.
     const safeData = newData.map((sheet: any) => {
       const { data, ...rest } = sheet;
-      
+
       if (data && Array.isArray(data)) {
         const newCelldata: any[] = [];
         for (let r = 0; r < data.length; r++) {
@@ -106,20 +106,20 @@ export function SpreadsheetPanel(props: IDockviewPanelProps) {
       showSheetTabs: true,
       allowEdit: !isReadOnly,
       toolbarItems: [
-        "undo", "redo", "format-painter", "clear-format", "|", 
-        "currency-format", "percentage-format", "number-decrease", "number-increase", 
-        "format", "font-size", "|", 
-        "bold", "italic", "strike-through", "underline", "|", 
-        "font-color", "background", "border", "merge-cell", "|", 
-        "horizontal-align", "vertical-align", "text-wrap", "text-rotation", "|", 
-        "freeze", "sort", "comment", "quick-formula",
+        "undo", "redo", "format-painter", "clear-format", "|",
+        "currency-format", "percentage-format", "number-decrease", "number-increase",
+        "format", "font-size", "|",
+        "bold", "italic", "strike-through", "underline", "|",
+        "font-color", "background", "border", "merge-cell", "|",
+        "horizontal-align", "vertical-align", "text-wrap", "text-rotation", "|",
+        "freeze", "sort", "quick-formula",
       ]
     };
   }, [handleChange, showToolbar, isReadOnly, remountKey]);
 
   return (
-    <div 
-      className="w-full h-full relative light" 
+    <div
+      className="w-full h-full relative light"
       style={{ background: 'white' }}
     >
       {(isLocked && !isEncrypted) ? (
@@ -133,8 +133,8 @@ export function SpreadsheetPanel(props: IDockviewPanelProps) {
               읽기 전용
             </div>
           )}
-          <div 
-            key={remountKey} 
+          <div
+            key={remountKey}
             className={isReadOnly ? "pt-7 w-full h-full" : "w-full h-full"}
             ref={(el) => {
               if (el) {
