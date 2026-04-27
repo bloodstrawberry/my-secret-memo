@@ -5,11 +5,15 @@ import { toast } from "@/app/components/toast";
 import { useVisualToggleStore } from "@/app/store/visual-toggle-store";
 
 export const CustomTab = memo(function CustomTab(props: IDockviewPanelHeaderProps) {
-  const { updateTitle } = useContext(MemoContext);
+  const { updateTitle, isEncrypted } = useContext(MemoContext);
   const { lockedTabs } = useVisualToggleStore();
   const isLocked = lockedTabs[props.api.id] === true;
   const [isEditing, setIsEditing] = useState(false);
   const [tempTitle, setTempTitle] = useState(props.api.title || "");
+
+  const displayTitle = isEncrypted
+    ? (props.api.id.startsWith("todo") ? "TO-DO LIST" : props.api.id.startsWith("spreadsheet") ? "SPREADSHEET" : "MEMO")
+    : props.api.title;
 
   // Sync tempTitle with props.api.title when it changes externally
   useEffect(() => {
@@ -44,7 +48,7 @@ export const CustomTab = memo(function CustomTab(props: IDockviewPanelHeaderProp
       <div className="relative flex items-center min-w-[20px] max-w-[150px]">
         {/* Ghost element to drive the width dynamically */}
         <span className="invisible font-bold tracking-widest whitespace-pre px-0.5" style={{ fontSize: 'var(--dv-tab-font-size)' }}>
-          {tempTitle || " "}
+          {isEditing ? tempTitle : (displayTitle || " ")}
         </span>
 
         {isEditing ? (
@@ -62,7 +66,7 @@ export const CustomTab = memo(function CustomTab(props: IDockviewPanelHeaderProp
           />
         ) : (
           <span className="absolute inset-y-0 left-0 truncate w-full font-bold tracking-widest text-[var(--foreground)] opacity-70 group-hover:opacity-100 transition-opacity flex items-center" style={{ fontSize: 'var(--dv-tab-font-size)' }}>
-            {props.api.title}
+            {displayTitle}
           </span>
         )}
       </div>

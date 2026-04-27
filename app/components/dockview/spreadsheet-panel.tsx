@@ -23,7 +23,7 @@ export function SpreadsheetPanel(props: IDockviewPanelProps) {
   const [remountKey, setRemountKey] = useState(0);
   
   const getInitialData = () => {
-    return (isEncrypted && !memos[id]) ? DEFAULT_MEMOS.spreadsheet1 : (memos[id] || [{ name: "Sheet1", celldata: [] }]);
+    return isEncrypted ? DEFAULT_MEMOS.spreadsheet1 : (memos[id] || [{ name: "Sheet1", celldata: [] }]);
   };
   
   const initialData = useRef(getInitialData());
@@ -103,7 +103,7 @@ export function SpreadsheetPanel(props: IDockviewPanelProps) {
       className="w-full h-full relative light" 
       style={{ background: 'white' }}
     >
-      {isLocked ? (
+      {(isLocked && !isEncrypted) ? (
         <LockedView panelId={id} />
       ) : (
         <>

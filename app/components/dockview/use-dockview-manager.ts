@@ -3,6 +3,8 @@ import { DockviewReadyEvent } from "dockview";
 import { memoDB } from "../../library/indexDB";
 import { DEFAULT_TITLES, STORAGE_KEYS } from "@/app/constants/default";
 
+import { useAutoLockStore } from "@/app/store/auto-lock-store";
+
 export function useDockviewManager(
   apiRef: React.MutableRefObject<DockviewReadyEvent["api"] | null>,
   removeMemo: (id: string) => void,
@@ -27,10 +29,39 @@ export function useDockviewManager(
       const savedData = await memoDB.getItem<any>(STORAGE_KEY);
       if (apiRef.current !== event.api) return;
 
+      const { sessionKey } = useAutoLockStore.getState();
+      const isLocked = savedData?.isEncrypted && !sessionKey;
+
       const savedLayout = savedData?.layout;
       const savedTitlesMap = savedData?.titles || {};
 
-      if (savedLayout) {
+      if (isLocked) {
+        // Force default layout when locked
+        try {
+          event.api.addPanel({
+            id: "memo1",
+            component: "editor",
+            title: DEFAULT_TITLES["memo1"],
+            tabComponent: "default",
+          });
+          event.api.addPanel({
+            id: "todo1",
+            component: "todoList",
+            title: DEFAULT_TITLES["todo1"],
+            tabComponent: "default",
+            position: { referencePanel: "memo1", direction: "right" },
+          });
+          event.api.addPanel({
+            id: "spreadsheet1",
+            component: "spreadsheet",
+            title: DEFAULT_TITLES["spreadsheet1"],
+            tabComponent: "default",
+            position: { referencePanel: "todo1", direction: "below" },
+          });
+        } catch (e) {
+          console.error("Failed to create locked default layout", e);
+        }
+      } else if (savedLayout) {
         try {
           event.api.fromJSON(savedLayout);
           event.api.panels.forEach(panel => {

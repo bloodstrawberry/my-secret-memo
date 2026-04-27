@@ -8,13 +8,13 @@ import { DEFAULT_MEMOS } from "@/app/constants/default";
 
 export const EditorPanel = memo(function EditorPanel(props: IDockviewPanelProps) {
   const { memos, isReadOnly, updateMemo, isEncrypted } = useContext(MemoContext);
-  const memo = (isEncrypted && !memos[props.api.id]) ? DEFAULT_MEMOS.memo1 : (memos[props.api.id] || "");
+  const memo = isEncrypted ? DEFAULT_MEMOS.memo1 : (memos[props.api.id] || "");
   const { lockedTabs } = useVisualToggleStore();
   const isLocked = lockedTabs[props.api.id] === true;
 
   return (
     <div className="h-full w-full bg-[var(--panel-bg)] p-0 flex flex-col overflow-hidden transition-colors duration-300 border border-[var(--border-color)] relative">
-      {isLocked ? (
+      {(isLocked && !isEncrypted) ? (
         <LockedView panelId={props.api.id} />
       ) : (
         <MarkdownEditor

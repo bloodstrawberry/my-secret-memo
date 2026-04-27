@@ -583,6 +583,16 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
           isEncryptedRef.current = true;
           setMemos(DEFAULT_MEMOS);
           setTitles(DEFAULT_TITLES);
+
+          // Reset layout to default when uploading encrypted data
+          if (apiRef.current) {
+            try {
+              apiRef.current.clear();
+              apiRef.current.addPanel({ id: "memo1", component: "editor", title: DEFAULT_TITLES["memo1"], tabComponent: "default" });
+              apiRef.current.addPanel({ id: "todo1", component: "todoList", title: DEFAULT_TITLES["todo1"], tabComponent: "default", position: { referencePanel: "memo1", direction: "right" } });
+              apiRef.current.addPanel({ id: "spreadsheet1", component: "spreadsheet", title: DEFAULT_TITLES["spreadsheet1"], tabComponent: "default", position: { referencePanel: "todo1", direction: "below" } });
+            } catch (e) { console.error("Layout reset failed during upload", e); }
+          }
         } else {
           setIsEncrypted(false);
           isEncryptedRef.current = false;
@@ -663,6 +673,16 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
           stateRef.current.memos = DEFAULT_MEMOS;
           stateRef.current.titles = DEFAULT_TITLES;
           
+          // Reset layout to default when manually locking
+          if (apiRef.current) {
+            try {
+              apiRef.current.clear();
+              apiRef.current.addPanel({ id: "memo1", component: "editor", title: DEFAULT_TITLES["memo1"], tabComponent: "default" });
+              apiRef.current.addPanel({ id: "todo1", component: "todoList", title: DEFAULT_TITLES["todo1"], tabComponent: "default", position: { referencePanel: "memo1", direction: "right" } });
+              apiRef.current.addPanel({ id: "spreadsheet1", component: "spreadsheet", title: DEFAULT_TITLES["spreadsheet1"], tabComponent: "default", position: { referencePanel: "todo1", direction: "below" } });
+            } catch (e) { console.error("Layout reset failed during lock", e); }
+          }
+          
           // Clear session key when manually locking
           setSessionKey(null);
 
@@ -709,6 +729,19 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
               if (data.titles) setTitles(data.titles);
               stateRef.current.memos = decryptedMemos;
               stateRef.current.titles = data.titles || DEFAULT_TITLES;
+
+              // Restore layout from data when unlocking
+              if (data.layout && apiRef.current) {
+                try {
+                  apiRef.current.fromJSON(data.layout);
+                  if (data.titles) {
+                    apiRef.current.panels.forEach(p => {
+                      if (data.titles[p.id]) p.api.setTitle(data.titles[p.id]);
+                    });
+                  }
+                } catch (e) { console.error("Layout restore failed during unlock", e); }
+              }
+
               toast.success("잠금이 해제되었습니다. (AUTO LOCK 유지)");
             } else {
               // Normal unlock: save decrypted to IndexedDB
@@ -722,6 +755,19 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
               if (data.titles) setTitles(data.titles);
               stateRef.current.memos = decryptedMemos;
               stateRef.current.titles = data.titles || DEFAULT_TITLES;
+
+              // Restore layout from data when unlocking
+              if (data.layout && apiRef.current) {
+                try {
+                  apiRef.current.fromJSON(data.layout);
+                  if (data.titles) {
+                    apiRef.current.panels.forEach(p => {
+                      if (data.titles[p.id]) p.api.setTitle(data.titles[p.id]);
+                    });
+                  }
+                } catch (e) { console.error("Layout restore failed during unlock", e); }
+              }
+
               toast.success("암호화가 해제되었습니다.");
             }
           } else {
