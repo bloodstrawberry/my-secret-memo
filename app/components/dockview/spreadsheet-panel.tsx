@@ -174,7 +174,7 @@ export function SpreadsheetPanel(props: IDockviewPanelProps) {
 
   return (
     <div
-      className="w-full h-full relative light"
+      className="w-full h-full relative light border border-[var(--border-color)]"
       style={{ background: 'white' }}
     >
       {(isLocked && !isEncrypted) ? (
