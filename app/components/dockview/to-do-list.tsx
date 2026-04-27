@@ -1,4 +1,4 @@
-import { useContext, useState, memo, KeyboardEvent, useMemo, useEffect, useRef } from "react";
+import { useContext, useState, memo, KeyboardEvent, useMemo, useEffect, useRef, useCallback, useId } from "react";
 import { IDockviewPanelProps } from "dockview";
 import { Icon } from "@iconify/react";
 import { MemoContext } from "./context";
@@ -16,6 +16,7 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  DragStartEvent,
   TouchSensor,
 } from "@dnd-kit/core";
 import {
@@ -133,7 +134,7 @@ const SortableTodoItem = memo(function SortableTodoItem({
     <div
       ref={setNodeRef}
       style={containerStyle}
-      className={`group flex items-center gap-3 p-3 rounded-xl border transition-all flex-shrink-0 ${item.completed
+      className={`group flex items-center gap-3 p-3 rounded-xl border flex-shrink-0 ${isDragging ? "" : "transition-all"} ${item.completed
         ? "bg-slate-500/5 border-transparent text-slate-400"
         : "bg-[var(--background)] border-[var(--border-color)] hover:border-cyan-500/50 text-[var(--foreground)] shadow-sm"
         } ${isDragging ? "shadow-lg border-cyan-500" : ""}`}
@@ -256,8 +257,9 @@ const SortableTodoItem = memo(function SortableTodoItem({
   );
 });
 
+
 export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelProps) {
-  const { memos, isReadOnly, updateMemo, isEncrypted } = useContext(MemoContext);
+  const { memos, isReadOnly, updateMemo, isEncrypted, setSkipSync } = useContext(MemoContext);
   const { settings } = useSettings();
   const { lockedTabs } = useVisualToggleStore();
   const isLocked = lockedTabs[props.api.id] === true;
@@ -271,29 +273,38 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
     bg: '',
     text: ''
   });
+  const isDraggingRef = useRef(false);
+  const [localItems, setLocalItems] = useState<TodoItem[]>(memoData.items);
+  const dndId = useId();
+
+  useEffect(() => {
+    if (!isDraggingRef.current) {
+      setLocalItems(memoData.items);
+    }
+  }, [memoData.items]);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
+    useSensor(PointerSensor, useMemo(() => ({
       activationConstraint: {
         distance: 5,
       },
-    }),
-    useSensor(TouchSensor, {
+    }), [])),
+    useSensor(TouchSensor, useMemo(() => ({
       activationConstraint: {
         delay: 250,
         tolerance: 5,
       },
-    }),
-    useSensor(KeyboardSensor, {
+    }), [])),
+    useSensor(KeyboardSensor, useMemo(() => ({
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }), []))
   );
 
-  const updateItems = (newItems: TodoItem[]) => {
+  const updateItems = useCallback((newItems: TodoItem[]) => {
     updateMemo(props.api.id, { ...memoData, items: newItems });
-  };
+  }, [updateMemo, props.api.id, memoData]);
 
-  const handleAdd = () => {
+  const handleAdd = useCallback(() => {
     if (!inputValue.trim()) return;
     const newItem: TodoItem = {
       id: `todo-${Date.now()}`,
@@ -305,20 +316,20 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
     };
     updateItems([...memoData.items, newItem]);
     setInputValue("");
-  };
+  }, [inputValue, lastStyles, memoData.items, updateItems]);
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       handleAdd();
     }
-  };
+  }, [handleAdd]);
 
-  const handleEditStart = (item: TodoItem) => {
+  const handleEditStart = useCallback((item: TodoItem) => {
     setEditingId(item.id);
     setEditingText(item.text);
-  };
+  }, []);
 
-  const handleEditSave = () => {
+  const handleEditSave = useCallback(() => {
     if (!editingId) return;
     const trimmed = editingText.trim();
     if (trimmed) {
@@ -328,24 +339,24 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
       updateItems(newItems);
     }
     setEditingId(null);
-  };
+  }, [editingId, editingText, memoData.items, updateItems]);
 
-  const handleEditKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+  const handleEditKeyDown = useCallback((e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       handleEditSave();
     } else if (e.key === "Escape") {
       setEditingId(null);
     }
-  };
+  }, [handleEditSave]);
 
-  const toggleCompleted = (id: string) => {
+  const toggleCompleted = useCallback((id: string) => {
     const newItems = memoData.items.map(item =>
       item.id === id ? { ...item, completed: !item.completed } : item
     );
     updateItems(newItems);
-  };
+  }, [memoData.items, updateItems]);
 
-  const updateStyle = (id: string, type: 'border' | 'bg' | 'text', color: string) => {
+  const updateStyle = useCallback((id: string, type: 'border' | 'bg' | 'text', color: string) => {
     setLastStyles(prev => ({ ...prev, [type]: color }));
     const newItems = memoData.items.map(item => {
       if (item.id === id) {
@@ -356,29 +367,37 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
       return item;
     });
     updateItems(newItems);
-  };
+  }, [memoData.items, updateItems]);
 
-  const deleteItem = (id: string) => {
+  const deleteItem = useCallback((id: string) => {
     toast.confirm("정말 이 항목을 삭제하시겠습니까?", () => {
       const newItems = memoData.items.filter(item => item.id !== id);
       updateItems(newItems);
     }, { type: "danger", confirmText: "삭제", cancelText: "취소" });
-  };
+  }, [memoData.items, updateItems]);
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    isDraggingRef.current = true;
+    setSkipSync(true);
+  }, [setSkipSync]);
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    isDraggingRef.current = false;
+    setSkipSync(false);
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
-      const oldIndex = memoData.items.findIndex((item) => item.id === active.id);
-      const newIndex = memoData.items.findIndex((item) => item.id === over.id);
+      const oldIndex = localItems.findIndex((item) => item.id === active.id);
+      const newIndex = localItems.findIndex((item) => item.id === over.id);
 
-      const newItems = arrayMove(memoData.items, oldIndex, newIndex);
+      const newItems = arrayMove(localItems, oldIndex, newIndex);
+      setLocalItems(newItems);
       updateItems(newItems);
     }
-  };
+  }, [localItems, updateItems]);
 
-  const total = memoData.items.length;
-  const completedCount = memoData.items.filter(i => i.completed).length;
+  const total = localItems.length;
+  const completedCount = localItems.filter(i => i.completed).length;
 
   const isJeonSoMin = settings.fontFamily.toLowerCase().includes("jeonsomin");
 
@@ -432,23 +451,25 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
 
           <div className="flex-1 overflow-auto custom-scrollbar">
             <div className="px-6 pb-6 space-y-2">
-              {memoData.items.length === 0 ? (
+              {localItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-slate-400 opacity-60">
                   <Icon icon="mdi:check-all" className="w-12 h-12 mb-2" />
                   <p className="text-sm font-medium">No tasks yet.</p>
                 </div>
               ) : (
                 <DndContext
+                  id={dndId}
                   sensors={sensors}
                   collisionDetection={closestCenter}
+                  onDragStart={handleDragStart}
                   onDragEnd={handleDragEnd}
                   modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}
                 >
                   <SortableContext
-                    items={memoData.items.map(i => i.id)}
+                    items={localItems.map(i => i.id)}
                     strategy={verticalListSortingStrategy}
                   >
-                    {memoData.items.map((item) => (
+                    {localItems.map((item) => (
                       <SortableTodoItem
                         key={item.id}
                         item={item}

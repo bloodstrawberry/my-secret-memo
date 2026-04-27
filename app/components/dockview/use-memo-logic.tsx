@@ -1110,6 +1110,10 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
       toast.error("이력 삭제에 실패했습니다.");
     }
   }, [loadHistoryDate]);
+ 
+  const setSkipSync = useCallback((skip: boolean) => {
+    skipPersistRef.current = skip;
+  }, []);
 
   // Global Keyboard Shortcuts
   useEffect(() => {
@@ -1135,6 +1139,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
   return {
     memos, titles, isDarkMode, setIsDarkMode, isMounted, settings, updateSettings,
     saveStatus, progressWidth, isEncrypted, isReadOnly, lastUpdated, persistState, removeMemo, resetData,
-    updateMemo, updateTitle, addMemo, downloadData, uploadData, toggleEncryption, loadHistoryDate, deleteHistoryDate
+    updateMemo, updateTitle, addMemo, downloadData, uploadData, toggleEncryption, loadHistoryDate, deleteHistoryDate,
+    setSkipSync
   };
 }

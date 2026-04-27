@@ -10,6 +10,7 @@ export const MemoContext = createContext<{
   removeMemo: (id: string) => void;
   resetData: (type?: "options" | "memos" | "todos" | "page" | "all") => void;
   toggleEncryption: () => void;
+  setSkipSync: (skip: boolean) => void;
 }>({
   memos: {},
   titles: {},
@@ -19,7 +20,8 @@ export const MemoContext = createContext<{
   updateTitle: () => { },
   removeMemo: () => { },
   resetData: () => { },
-  toggleEncryption: () => { }
+  toggleEncryption: () => { },
+  setSkipSync: () => { }
 });
 
 export const useMemoStore = () => useContext(MemoContext);
