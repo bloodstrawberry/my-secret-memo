@@ -87,11 +87,14 @@ export function Header({
             )}
 
             <button
-              onClick={toggleEncryption}
-              title={isEncrypted ? "암호화 해제" : "암호화 잠금"}
-              className={`ml-0 p-1.5 rounded-lg transition-all flex items-center justify-center ${isEncrypted
-                ? "bg-red-500/10 text-red-500 hover:bg-red-500/20"
-                : "bg-slate-500/10 text-slate-400 hover:bg-slate-500/20"
+              onClick={isReadOnly ? undefined : toggleEncryption}
+              disabled={isReadOnly}
+              title={isReadOnly ? "과거 이력은 잠금 설정을 변경할 수 없습니다" : (isEncrypted ? "암호화 해제" : "암호화 잠금")}
+              className={`ml-0 p-1.5 rounded-lg transition-all flex items-center justify-center ${isReadOnly
+                ? "opacity-30 cursor-not-allowed text-slate-400"
+                : isEncrypted
+                  ? "bg-red-500/10 text-red-500 hover:bg-red-500/20"
+                  : "bg-slate-500/10 text-slate-400 hover:bg-slate-500/20"
                 }`}
             >
               {isEncrypted ? (

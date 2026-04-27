@@ -101,7 +101,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     if (!layout && apiRef.current) {
       // Defensive check: Don't capture layout if we are in the middle of syncing it
       if ((window as any).__isSyncingLayout) return;
-      
+
       try {
         layout = apiRef.current.toJSON();
       } catch (e) {
@@ -139,7 +139,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
 
     try {
       const oldData = await memoDB.getItem<any>(STORAGE_KEY);
-      
+
       // Critical safety check: If a lock/unlock/upload process started while we were waiting
       // for the DB read, we MUST abort this save to prevent data corruption or overwriting
       // encrypted data with unencrypted data (or vice versa).
@@ -173,6 +173,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
             settings: currentState.settings,
             theme: currentState.theme,
             layout: currentState.layout,
+            visualToggles: currentState.visualToggles,
             savedAt: currentState.lastUpdated,
             isEncrypted: currentState.isEncrypted || false,
           };
@@ -292,7 +293,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
             lastUpdated: savedData.lastUpdated
           };
         }
-        
+
         if (savedData.settings) setSettings(savedData.settings);
         if (savedData.theme) {
           const dark = savedData.theme === "dark";
@@ -306,7 +307,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
 
         if (savedData.visualToggles) {
           if (savedData.visualToggles.toolbarVisibility !== undefined) {
-            useVisualToggleStore.setState({ 
+            useVisualToggleStore.setState({
               toolbarVisibility: savedData.visualToggles.toolbarVisibility,
               tabLocks: savedData.visualToggles.tabLocks || {},
               lockedTabs: savedData.visualToggles.lockedTabs || {}
@@ -424,6 +425,15 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     persistState({ titles: nextTitles });
   }, [persistState]);
 
+  useEffect(() => {
+    const unsub = useVisualToggleStore.subscribe((state) => {
+      // Don't persist if we are in history mode or if skipPersist is active
+      if (useHistoryStore.getState().isReadOnly || skipPersistRef.current) return;
+      debouncedPersist();
+    });
+    return () => unsub();
+  }, [debouncedPersist]);
+
   const updateSettings = useCallback((newSettings: Partial<EditorSettings>) => {
     versionRef.current++;
     lastInputTimeRef.current = Date.now();
@@ -488,25 +498,16 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
       }
 
       if (type === "page") {
-        if (!apiRef.current) return;
-        const activePanel = apiRef.current.activePanel;
-        if (!activePanel) {
-          toast.error("초기화할 활성 페이지가 없습니다.");
-          return;
-        }
-        const id = activePanel.id;
-        let defaultValue: any = { type: "doc", content: [{ type: "paragraph" }] };
-
-        if (id.startsWith("todo")) {
-          defaultValue = { items: [] };
-        } else if (id.startsWith("spreadsheet")) {
-          defaultValue = [{ name: "Sheet1", celldata: [], status: 1 }];
-        }
-
-        const nextMemos = { ...stateRef.current.memos, [id]: defaultValue };
-        setMemos(nextMemos);
-        persistState({ memos: nextMemos });
-        toast.success("현재 페이지가 초기화되었습니다.");
+        skipPersistRef.current = true;
+        // Clear only live state, KEEP history
+        await memoDB.deleteItem(STORAGE_KEY);
+        // Clear legacy localStorage as well
+        localStorage.removeItem(STORAGE_KEYS.MEMOS);
+        localStorage.removeItem(STORAGE_KEYS.TITLES);
+        localStorage.removeItem(STORAGE_KEYS.LAYOUT);
+        localStorage.removeItem(STORAGE_KEYS.SETTINGS);
+        localStorage.removeItem('visual-toggle-storage');
+        window.location.reload();
         return;
       }
 
@@ -584,6 +585,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
       localStorage.removeItem(STORAGE_KEYS.TITLES);
       localStorage.removeItem(STORAGE_KEYS.LAYOUT);
       localStorage.removeItem(STORAGE_KEYS.SETTINGS);
+      localStorage.removeItem('visual-toggle-storage');
       window.location.reload();
     });
   }, [persistState]);
@@ -782,9 +784,9 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
         try {
           debouncedPersist.cancel(); // Defensive code: cancel pending saves
           skipPersistRef.current = true; // Block auto-persistence during lock process
-          
+
           let data = await memoDB.getItem<any>(STORAGE_KEY) || {};
-          
+
           // Capture LATEST state including layout and titles
           const memosToEncrypt = stateRef.current.memos;
 
@@ -804,11 +806,11 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
           data.layout = layoutToEncrypt;
           data.isEncrypted = true;
           data.lastUpdated = new Date().toISOString(); // Defensive code: update timestamp
-          
+
           const { default: CryptoJS } = await import("crypto-js");
           data.keyHash = CryptoJS.SHA256(key).toString();
           delete data.encryptedKey;
-          
+
           if (autoLockEnabled) {
             data.autoLock = true;
           }
@@ -820,7 +822,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
           setTitles(DEFAULT_TITLES);
           stateRef.current.memos = DEFAULT_MEMOS;
           stateRef.current.titles = DEFAULT_TITLES;
-          
+
           if (apiRef.current) {
             try {
               (window as any).__isSyncingLayout = true;
@@ -831,7 +833,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
             } catch (e) { console.error("Layout reset failed during lock", e); }
             finally { (window as any).__isSyncingLayout = false; }
           }
-          
+
           // Clear session key when manually locking
           setSessionKey(null);
 
@@ -987,8 +989,11 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
         if (savedData.layout && apiRef.current) {
           try { apiRef.current.fromJSON(savedData.layout); } catch (e) { console.error(e); }
         }
+        if (savedData.visualToggles) {
+          useVisualToggleStore.setState(savedData.visualToggles);
+        }
       }
-      toast.success("암호화 성공! 오늘 데이터로 돌아왔습니다.");
+      toast.success("최신 데이터로 돌아왔습니다.");
       return;
     }
 
@@ -1018,6 +1023,17 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     if (snapshot.titles) setTitles(snapshot.titles);
     if (snapshot.layout && apiRef.current) {
       try { apiRef.current.fromJSON(snapshot.layout); } catch (e) { console.error(e); }
+    }
+    if (snapshot.visualToggles) {
+      useVisualToggleStore.setState(snapshot.visualToggles);
+    } else {
+      // Legacy snapshots: default to all visible and unlocked
+      useVisualToggleStore.setState({
+        toolbarVisibility: {},
+        tabLocks: {},
+        lockedTabs: {},
+        tabSessionPasswords: {},
+      });
     }
     toast.success(`${dateKey} 이력을 불러왔습니다. (읽기 전용)`);
   }, [apiRef]);

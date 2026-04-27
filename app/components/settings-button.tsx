@@ -12,6 +12,7 @@ import { memoDB } from "@/app/library/indexDB";
 import { DEFAULT_MEMOS, DEFAULT_TITLES } from "@/app/constants/default";
 import { encryptMemosText } from "@/app/components/dockview/utils";
 import { useLoadingOverlay } from "@/app/store/loading-overlay-store";
+import { useHistoryStore } from "@/app/store/history-store";
 import { useEffect, useRef } from "react";
 
 const FONT_OPTIONS = [
@@ -215,8 +216,9 @@ export function SettingsPopover({ onClose }: { onClose: () => void }) {
 function AutoLockToggle() {
   const { autoLockEnabled, setAutoLockEnabled, setSessionKey, keyError, setKeyError, sessionKey } = useAutoLockStore();
   const { memos, titles, isEncrypted } = useMemoStore();
+  const { isReadOnly } = useHistoryStore();
 
-  const isDisabled = keyError || isEncrypted;
+  const isDisabled = keyError || isEncrypted || isReadOnly;
 
   const handleToggle = () => {
     if (isDisabled) return;
@@ -355,13 +357,17 @@ function AutoLockToggle() {
 
 function MemoResetButton() {
   const { resetData } = useMemoStore();
+  const { isReadOnly } = useHistoryStore();
   const [isExpanded, setIsExpanded] = useState(false);
 
   if (!isExpanded) {
     return (
       <button
-        onClick={() => setIsExpanded(true)}
-        className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[11px] font-bold uppercase tracking-wider transition-all active:scale-95"
+        disabled={isReadOnly}
+        onClick={() => !isReadOnly && setIsExpanded(true)}
+        className={`flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-500/10 text-red-500 text-[11px] font-bold uppercase tracking-wider transition-all ${
+          isReadOnly ? "opacity-30 cursor-not-allowed" : "hover:bg-red-500/20 active:scale-95"
+        }`}
       >
         <Icon icon="material-symbols:delete-sweep-outline" className="w-3.5 h-3.5" />
         초기화
@@ -411,7 +417,7 @@ function MemoResetButton() {
         className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-orange-500/10 hover:bg-orange-500/20 text-orange-500 transition-all text-xs font-bold text-left w-full group"
       >
         <Icon icon="material-symbols:restart-alt-rounded" className="w-4 h-4 opacity-80 group-hover:opacity-100 transition-opacity" />
-        <span className="whitespace-nowrap">현재 페이지 초기화</span>
+        <span className="whitespace-nowrap">현재 상태 초기화</span>
       </button>
 
       <div className="my-1 border-t border-[var(--border-color)] opacity-30" />
