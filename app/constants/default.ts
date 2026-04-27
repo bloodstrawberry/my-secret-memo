@@ -62,13 +62,6 @@ export const DEFAULT_MEMOS: Record<string, any> = {
         content: [{ type: "text", text: "3. Task List" }]
       },
       {
-        type: "taskList",
-        content: [
-          { type: "taskItem", attrs: { checked: true }, content: [{ type: "paragraph", content: [{ type: "text", text: "Completed task" }] }] },
-          { type: "taskItem", attrs: { checked: false }, content: [{ type: "paragraph", content: [{ type: "text", text: "Pending task" }] }] }
-        ]
-      },
-      {
         type: "heading",
         attrs: { level: 2 },
         content: [{ type: "text", text: "4. Code & Blocks" }]
