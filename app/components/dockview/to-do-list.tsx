@@ -423,29 +423,28 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
           )}
 
           <div className="p-6 pb-0">
-            <div className="flex items-center justify-between mb-6">
-              <div className="text-xs font-medium text-slate-500 bg-slate-500/10 px-2 py-1 rounded-full whitespace-nowrap">
-                {completedCount} / {total} Completed
+            <div className="flex items-center gap-3 mb-6">
+              <div className="text-[10px] font-bold text-slate-500 bg-slate-500/10 px-2 py-1 rounded-lg whitespace-nowrap flex-shrink-0 border border-slate-500/10">
+                {completedCount} / {total}
               </div>
-            </div>
-
-            <div className="flex gap-2 mb-6">
-              <input
-                type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={isReadOnly ? "읽기 전용 모드" : "What needs to be done?"}
-                disabled={isReadOnly}
-                className="flex-1 bg-transparent border-b border-[var(--border-color)] focus:border-cyan-500 pb-2 outline-none text-[var(--foreground)] transition-colors min-w-0 disabled:opacity-50 disabled:cursor-not-allowed"
-              />
-              <button
-                onClick={handleAdd}
-                disabled={!inputValue.trim() || isReadOnly}
-                className="p-2 bg-cyan-500 text-white rounded-xl hover:bg-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-sm shadow-cyan-500/20 flex-shrink-0"
-              >
-                <Icon icon="mdi:plus" className="w-5 h-5" />
-              </button>
+              <div className="flex-1 flex gap-2">
+                <input
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={isReadOnly ? "읽기 전용 모드" : "What needs to be done?"}
+                  disabled={isReadOnly}
+                  className="flex-1 bg-transparent border-b border-[var(--border-color)] focus:border-cyan-500 pb-1 outline-none text-[var(--foreground)] transition-colors min-w-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+                <button
+                  onClick={handleAdd}
+                  disabled={!inputValue.trim() || isReadOnly}
+                  className="p-1.5 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-sm shadow-cyan-500/20 flex-shrink-0"
+                >
+                  <Icon icon="mdi:plus" className="w-5 h-5" />
+                </button>
+              </div>
             </div>
           </div>
 
