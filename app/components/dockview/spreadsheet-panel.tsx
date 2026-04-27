@@ -7,6 +7,20 @@ import { useVisualToggleStore } from "@/app/store/visual-toggle-store";
 import { LockedView } from "./locked-view";
 import { DEFAULT_MEMOS } from "@/app/constants/default";
 
+if (typeof window !== "undefined") {
+  const originalError = console.error;
+  console.error = (...args) => {
+    const msg = args.map(a => String(a)).join(' ');
+    if (
+      msg.includes("Cannot update a component") &&
+      msg.includes("ModalProvider")
+    ) {
+      return;
+    }
+    originalError.apply(console, args);
+  };
+}
+
 export function SpreadsheetPanel(props: IDockviewPanelProps) {
   const id = props.api.id;
   useDockviewResize(props.api);
@@ -89,7 +103,10 @@ export function SpreadsheetPanel(props: IDockviewPanelProps) {
     try {
       const cloned = JSON.parse(JSON.stringify(safeData));
       isLocalChangeRef.current = true;
-      updateMemo(id, cloned);
+      // Push the state update to the next tick to avoid "Cannot update a component while rendering a different component"
+      setTimeout(() => {
+        updateMemo(id, cloned);
+      }, 0);
     } catch (e) {
       console.error("Failed to stringify spreadsheet data:", e);
     }
