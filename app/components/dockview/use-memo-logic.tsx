@@ -97,7 +97,18 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
       return;
     }
 
-    const layout = overrides?.layout ?? apiRef.current?.toJSON();
+    let layout = overrides?.layout;
+    if (!layout && apiRef.current) {
+      // Defensive check: Don't capture layout if we are in the middle of syncing it
+      if ((window as any).__isSyncingLayout) return;
+      
+      try {
+        layout = apiRef.current.toJSON();
+      } catch (e) {
+        console.warn("Failed to capture layout (Dockview might be busy or in invalid state):", e);
+        return; // Skip this save attempt
+      }
+    }
     if (!layout) return;
 
     const memosToSave = overrides?.memos ?? stateRef.current.memos;
