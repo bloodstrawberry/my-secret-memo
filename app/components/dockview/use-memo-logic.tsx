@@ -65,7 +65,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
 
   // Use a ref to always have access to the latest state in debounced functions
   const stateRef = useRef({ memos, titles, settings, isDarkMode, lastUpdated });
-  stateRef.current = { memos, titles, settings, isDarkMode, lastUpdated };
+  // stateRef.current is updated manually in each setter to avoid stale closures during render cycles
 
   // Centralized persistence function
   const persistState = useCallback(async (overrides?: {
@@ -243,8 +243,20 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
         }
 
         // Apply external changes
-        const autoLockOn = useAutoLockStore.getState().autoLockEnabled;
-        if (savedData.isEncrypted || (autoLockOn && savedData.autoLock)) {
+        const { autoLockEnabled, sessionKey } = useAutoLockStore.getState();
+        let incomingMemos = savedData.memos;
+        let incomingIsEncrypted = savedData.isEncrypted || (autoLockEnabled && savedData.autoLock);
+
+        if (incomingIsEncrypted && sessionKey) {
+          try {
+            incomingMemos = decryptMemosText(savedData.memos, sessionKey);
+            incomingIsEncrypted = false;
+          } catch (e) {
+            console.error("Failed to decrypt incoming sync data", e);
+          }
+        }
+
+        if (incomingIsEncrypted) {
           setIsEncrypted(true);
           isEncryptedRef.current = true;
           setMemos(DEFAULT_MEMOS);
@@ -257,23 +269,30 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
             lastUpdated: savedData.lastUpdated
           };
         } else {
-          if (savedData.memos) setMemos(savedData.memos);
+          setIsEncrypted(false);
+          isEncryptedRef.current = false;
+          if (incomingMemos) setMemos(incomingMemos);
           if (savedData.titles) setTitles(savedData.titles);
           stateRef.current = {
-            memos: savedData.memos || {},
+            memos: incomingMemos || {},
             titles: savedData.titles || {},
             settings: savedData.settings || DEFAULT_SETTINGS,
             isDarkMode: savedData.theme === "dark",
             lastUpdated: savedData.lastUpdated
           };
         }
-
+        
         if (savedData.settings) setSettings(savedData.settings);
         if (savedData.theme) {
           const dark = savedData.theme === "dark";
           setIsDarkMode(dark);
+          stateRef.current.isDarkMode = dark;
           if (dark) document.documentElement.classList.add("dark");
         }
+        if (savedData.lastUpdated) {
+          setLastUpdated(savedData.lastUpdated);
+        }
+
         if (savedData.visualToggles) {
           if (savedData.visualToggles.toolbarVisibility !== undefined) {
             useVisualToggleStore.setState({ 
@@ -288,6 +307,40 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
         }
         if (savedData.lastUpdated) {
           setLastUpdated(savedData.lastUpdated);
+        }
+
+        // Sync Layout & Titles
+        if (apiRef.current && !isEncryptedRef.current) {
+          // Layout
+          if (savedData.layout) {
+            try {
+              const currentLayoutStr = JSON.stringify(apiRef.current.toJSON());
+              const newLayoutStr = JSON.stringify(savedData.layout);
+              if (currentLayoutStr !== newLayoutStr) {
+                // Set flag to prevent infinite layout sync loop
+                (window as any).__skipNextLayoutSave = true;
+                setTimeout(() => {
+                  if (apiRef.current) {
+                    (window as any).__isSyncingLayout = true;
+                    try {
+                      apiRef.current.fromJSON(savedData.layout);
+                    } finally {
+                      (window as any).__isSyncingLayout = false;
+                    }
+                  }
+                }, 0);
+              }
+            } catch (e) {
+              console.error("Failed to sync layout", e);
+            }
+          }
+          // Titles
+          const titlesMap = savedData.titles || {};
+          apiRef.current.panels.forEach(panel => {
+            if (titlesMap[panel.id] && panel.api.title !== titlesMap[panel.id]) {
+              panel.api.setTitle(titlesMap[panel.id]);
+            }
+          });
         }
 
         setIsMounted(true);
@@ -335,6 +388,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     setSaveStatus(prev => prev !== "saving" ? "saving" : prev);
 
     const nextMemos = { ...stateRef.current.memos, [id]: val };
+    stateRef.current.memos = nextMemos;
     setMemos(nextMemos);
 
     const now = Date.now();
@@ -354,6 +408,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     setSaveStatus(prev => prev !== "saving" ? "saving" : prev);
 
     const nextTitles = { ...stateRef.current.titles, [id]: title };
+    stateRef.current.titles = nextTitles;
     setTitles(nextTitles);
     persistState({ titles: nextTitles });
   }, [persistState]);
@@ -364,6 +419,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     setSaveStatus(prev => prev !== "saving" ? "saving" : prev);
 
     const nextSettings = { ...stateRef.current.settings, ...newSettings };
+    stateRef.current.settings = nextSettings;
     setSettings(nextSettings);
     persistState({ settings: nextSettings });
   }, [persistState]);
@@ -645,14 +701,15 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
           setMemos(DEFAULT_MEMOS);
           setTitles(DEFAULT_TITLES);
 
-          // Reset layout to default when uploading encrypted data
           if (apiRef.current) {
             try {
+              (window as any).__isSyncingLayout = true;
               apiRef.current.clear();
               apiRef.current.addPanel({ id: "memo1", component: "editor", title: DEFAULT_TITLES["memo1"], tabComponent: "default" });
               apiRef.current.addPanel({ id: "todo1", component: "todoList", title: DEFAULT_TITLES["todo1"], tabComponent: "default", position: { referencePanel: "memo1", direction: "right" } });
               apiRef.current.addPanel({ id: "spreadsheet1", component: "spreadsheet", title: DEFAULT_TITLES["spreadsheet1"], tabComponent: "default", position: { referencePanel: "todo1", direction: "below" } });
             } catch (e) { console.error("Layout reset failed during upload", e); }
+            finally { (window as any).__isSyncingLayout = false; }
           }
         } else {
           setIsEncrypted(false);
@@ -667,9 +724,12 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
 
         if (mainData.layout && apiRef.current) {
           try {
+            (window as any).__isSyncingLayout = true;
             apiRef.current.fromJSON(mainData.layout);
           } catch (e) {
             console.error("Layout restore failed during upload", e);
+          } finally {
+            (window as any).__isSyncingLayout = false;
           }
         }
 
@@ -750,14 +810,15 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
           stateRef.current.memos = DEFAULT_MEMOS;
           stateRef.current.titles = DEFAULT_TITLES;
           
-          // Reset layout to default when manually locking
           if (apiRef.current) {
             try {
+              (window as any).__isSyncingLayout = true;
               apiRef.current.clear();
               apiRef.current.addPanel({ id: "memo1", component: "editor", title: DEFAULT_TITLES["memo1"], tabComponent: "default" });
               apiRef.current.addPanel({ id: "todo1", component: "todoList", title: DEFAULT_TITLES["todo1"], tabComponent: "default", position: { referencePanel: "memo1", direction: "right" } });
               apiRef.current.addPanel({ id: "spreadsheet1", component: "spreadsheet", title: DEFAULT_TITLES["spreadsheet1"], tabComponent: "default", position: { referencePanel: "todo1", direction: "below" } });
             } catch (e) { console.error("Layout reset failed during lock", e); }
+            finally { (window as any).__isSyncingLayout = false; }
           }
           
           // Clear session key when manually locking
@@ -819,6 +880,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
               if (data.layout && apiRef.current) {
                 setTimeout(() => {
                   try {
+                    (window as any).__isSyncingLayout = true;
                     apiRef.current?.fromJSON(data.layout);
                     if (data.titles) {
                       apiRef.current?.panels.forEach(p => {
@@ -826,6 +888,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
                       });
                     }
                   } catch (e) { console.error("Layout restore failed during unlock", e); }
+                  finally { (window as any).__isSyncingLayout = false; }
                 }, 0);
               }
 
@@ -849,6 +912,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
               if (data.layout && apiRef.current) {
                 setTimeout(() => {
                   try {
+                    (window as any).__isSyncingLayout = true;
                     apiRef.current?.fromJSON(data.layout);
                     if (data.titles) {
                       apiRef.current?.panels.forEach(p => {
@@ -856,6 +920,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
                       });
                     }
                   } catch (e) { console.error("Layout restore failed during unlock", e); }
+                  finally { (window as any).__isSyncingLayout = false; }
                 }, 0);
               }
 

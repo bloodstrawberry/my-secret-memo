@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, useRef } from "react";
 import { DockviewReadyEvent } from "dockview";
 import { memoDB } from "../../library/indexDB";
 import { DEFAULT_TITLES, STORAGE_KEYS } from "@/app/constants/default";
@@ -12,16 +12,24 @@ export function useDockviewManager(
 ) {
   const STORAGE_KEY = "my-secret-key";
   const [panelIds, setPanelIds] = useState<string[]>([]);
+  const isInitializedRef = useRef(false);
 
   const onReady = useCallback((event: DockviewReadyEvent) => {
     apiRef.current = event.api;
 
     event.api.onDidLayoutChange(() => {
+      if (!isInitializedRef.current || (window as any).__isSyncingLayout) return;
+      if ((window as any).__skipNextLayoutSave) {
+        (window as any).__skipNextLayoutSave = false;
+        setPanelIds(event.api.panels.map(p => p.id));
+        return;
+      }
       setPanelIds(event.api.panels.map(p => p.id));
       persistState();
     });
 
     event.api.onDidRemovePanel((panel) => {
+      if ((window as any).__isSyncingLayout) return;
       removeMemo(panel.id);
     });
 
@@ -63,6 +71,7 @@ export function useDockviewManager(
         }
       } else if (savedLayout) {
         try {
+          (window as any).__isSyncingLayout = true;
           event.api.fromJSON(savedLayout);
           event.api.panels.forEach(panel => {
             if (savedTitlesMap[panel.id]) {
@@ -71,14 +80,19 @@ export function useDockviewManager(
           });
         } catch (e) {
           console.error("Failed to load saved layout", e);
+        } finally {
+          (window as any).__isSyncingLayout = false;
         }
       } else {
         const legacyLayoutStr = localStorage.getItem(STORAGE_KEYS.LAYOUT);
         if (legacyLayoutStr) {
           try {
+            (window as any).__isSyncingLayout = true;
             event.api.fromJSON(JSON.parse(legacyLayoutStr));
           } catch (e) {
             console.error("Failed to load legacy layout", e);
+          } finally {
+            (window as any).__isSyncingLayout = false;
           }
         } else {
           try {
@@ -109,6 +123,9 @@ export function useDockviewManager(
       }
 
       setPanelIds(event.api.panels.map(p => p.id));
+      setTimeout(() => {
+        isInitializedRef.current = true;
+      }, 100);
     };
 
     initializeLayout();

@@ -115,6 +115,29 @@ export function SpreadsheetPanel(props: IDockviewPanelProps) {
       return rest;
     });
 
+    // Ignore changes that only affect selection or scroll position
+    const cleanForCompare = (sheets: any[]) => {
+      return sheets.map(s => {
+        const { 
+          luckysheet_select_save, 
+          luckysheet_selection_range, 
+          scrollLeft, 
+          scrollTop,
+          data, // data is already removed in safeData, but let's be explicit
+          ...rest 
+        } = s;
+        return rest;
+      });
+    };
+
+    if (initialData.current) {
+      const oldClean = JSON.stringify(cleanForCompare(initialData.current));
+      const newClean = JSON.stringify(cleanForCompare(safeData));
+      if (oldClean === newClean) {
+        return;
+      }
+    }
+
     try {
       const cloned = JSON.parse(JSON.stringify(safeData));
       isLocalChangeRef.current = true;
