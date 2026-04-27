@@ -1,4 +1,4 @@
-import { useContext, useState, memo, KeyboardEvent, useMemo } from "react";
+import { useContext, useState, memo, KeyboardEvent, useMemo, useEffect, useRef } from "react";
 import { IDockviewPanelProps } from "dockview";
 import { Icon } from "@iconify/react";
 import { MemoContext } from "./context";
@@ -32,6 +32,9 @@ interface TodoItem {
   id: string;
   text: string;
   completed: boolean;
+  borderColor?: string;
+  backgroundColor?: string;
+  textColor?: string;
 }
 
 interface TodoData {
@@ -48,6 +51,7 @@ interface SortableTodoItemProps {
   handleEditKeyDown: (e: KeyboardEvent<HTMLInputElement>) => void;
   toggleCompleted: (id: string) => void;
   deleteItem: (id: string) => void;
+  updateStyle: (id: string, type: 'border' | 'bg' | 'text', color: string) => void;
   isReadOnly?: boolean;
 }
 
@@ -61,6 +65,7 @@ const SortableTodoItem = memo(function SortableTodoItem({
   handleEditKeyDown,
   toggleCompleted,
   deleteItem,
+  updateStyle,
   isReadOnly,
 }: SortableTodoItemProps) {
   const {
@@ -72,40 +77,136 @@ const SortableTodoItem = memo(function SortableTodoItem({
     isDragging,
   } = useSortable({ id: item.id });
 
-  const style = {
+  const [activeTab, setActiveTab] = useState<'border' | 'bg' | 'text'>('text');
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isPickerOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setIsPickerOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isPickerOpen]);
+
+  const TODO_COLORS = [
+    { name: 'Default', value: '' },
+    { name: 'Slate', value: '#64748b' },
+    { name: 'Stone', value: '#78716c' },
+    { name: 'Red', value: '#ef4444' },
+    { name: 'Orange', value: '#f97316' },
+    { name: 'Amber', value: '#f59e0b' },
+    { name: 'Yellow', value: '#eab308' },
+    { name: 'Lime', value: '#84cc16' },
+    { name: 'Green', value: '#22c55e' },
+    { name: 'Emerald', value: '#10b981' },
+    { name: 'Teal', value: '#14b8a6' },
+    { name: 'Cyan', value: '#06b6d4' },
+    { name: 'Sky', value: '#0ea5e9' },
+    { name: 'Blue', value: '#3b82f6' },
+    { name: 'Indigo', value: '#6366f1' },
+    { name: 'Violet', value: '#8b5cf6' },
+    { name: 'Purple', value: '#a855f7' },
+    { name: 'Fuchsia', value: '#d946ef' },
+    { name: 'Pink', value: '#ec4899' },
+    { name: 'Rose', value: '#f43f5e' },
+  ];
+
+  const containerStyle = {
     transform: CSS.Transform.toString(transform),
     transition,
     zIndex: isDragging ? 50 : "auto",
     opacity: isDragging ? 0.5 : 1,
+    ...(item.backgroundColor && !item.completed ? { backgroundColor: item.backgroundColor } : {}),
+    ...(item.borderColor && !item.completed ? { borderColor: item.borderColor } : {}),
+    ...(item.textColor && !item.completed ? { color: item.textColor } : {}),
   };
+
+  const hasCustomStyle = !!(item.borderColor || item.backgroundColor || item.textColor);
 
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={containerStyle}
       className={`group flex items-center gap-3 p-3 rounded-xl border transition-all flex-shrink-0 ${item.completed
         ? "bg-slate-500/5 border-transparent text-slate-400"
-        : "bg-[var(--background)] border-[var(--border-color)] hover:border-cyan-500/50 text-[var(--foreground)] shadow-sm"
+        : !hasCustomStyle ? "bg-[var(--background)] border-[var(--border-color)] hover:border-cyan-500/50 text-[var(--foreground)] shadow-sm" : "shadow-sm"
         } ${isDragging ? "shadow-lg border-cyan-500" : ""}`}
     >
-      <div
-        {...attributes}
-        {...listeners}
-        className="flex-shrink-0 cursor-grab active:cursor-grabbing p-1 -ml-1 text-slate-400 hover:text-cyan-500 transition-colors"
-      >
-        <Icon icon="mdi:drag-vertical" className="w-5 h-5" />
-      </div>
+      <div className="flex items-center gap-1 flex-shrink-0">
+        <div
+          {...attributes}
+          {...listeners}
+          className="flex-shrink-0 cursor-grab active:cursor-grabbing p-1 -ml-1 text-slate-400 hover:text-cyan-500 transition-colors"
+        >
+          <Icon icon="mdi:drag-vertical" className="w-5 h-5" />
+        </div>
 
-      <button
-        onClick={() => !isReadOnly && toggleCompleted(item.id)}
-        disabled={isReadOnly}
-        className={`flex-shrink-0 w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${item.completed
-          ? "bg-emerald-500 border-emerald-500 text-white"
-          : "border-slate-400 hover:border-cyan-500 text-transparent hover:text-cyan-500/30"
-          }`}
-      >
-        <Icon icon="mdi:check" className="w-4 h-4" />
-      </button>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <button
+            onClick={() => !isReadOnly && toggleCompleted(item.id)}
+            disabled={isReadOnly}
+            className={`flex-shrink-0 w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${item.completed
+              ? "bg-emerald-500 border-emerald-500 text-white"
+              : "border-slate-400 hover:border-cyan-500 text-transparent hover:text-cyan-500/30"
+              }`}
+          >
+            <Icon icon="mdi:check" className="w-4 h-4" />
+          </button>
+
+          <div className="relative flex-shrink-0" ref={pickerRef}>
+            <button
+              disabled={isReadOnly}
+              onClick={() => setIsPickerOpen(!isPickerOpen)}
+              className="w-5 h-5 rounded-md border border-slate-400 bg-slate-400/10 hover:border-cyan-500 flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-sm"
+            >
+              <Icon icon="mdi:palette" className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-500" />
+            </button>
+
+            {isPickerOpen && (
+              <div className="absolute left-0 top-full mt-2 flex flex-col bg-[var(--panel-bg)] border border-[var(--border-color)] p-2.5 rounded-2xl shadow-2xl z-[60] gap-3 backdrop-blur-xl min-w-[180px]">
+                <div className="flex p-1 bg-slate-500/10 rounded-xl gap-1">
+                  {(['border', 'bg', 'text'] as const).map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => setActiveTab(type)}
+                      className={`flex-1 flex items-center justify-center p-1.5 rounded-lg transition-all ${activeTab === type ? "bg-cyan-500 text-white shadow-sm" : "text-slate-500 hover:text-slate-300"}`}
+                    >
+                      <Icon
+                        icon={type === 'border' ? 'mdi:border-all-variant' : type === 'bg' ? 'mdi:format-color-fill' : 'mdi:format-color-text'}
+                        className="w-4 h-4"
+                      />
+                    </button>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-5 gap-2">
+                  {TODO_COLORS.map((c) => {
+                    const isSelected = (activeTab === 'border' && item.borderColor === c.value) ||
+                      (activeTab === 'bg' && item.backgroundColor === c.value) ||
+                      (activeTab === 'text' && item.textColor === c.value);
+
+                    return (
+                      <button
+                        key={c.name}
+                        onClick={() => updateStyle(item.id, activeTab, c.value)}
+                        className={`w-5 h-5 rounded-full border border-white/10 hover:scale-125 transition-transform relative ${isSelected ? "ring-2 ring-cyan-500 ring-offset-2 ring-offset-[var(--panel-bg)]" : ""}`}
+                        style={{ backgroundColor: c.value || "transparent" }}
+                        title={c.name}
+                      >
+                        {!c.value && <div className="absolute inset-0 flex items-center justify-center text-[10px] opacity-40"><Icon icon="mdi:close" /></div>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
 
       {editingId === item.id ? (
         <input
@@ -115,7 +216,8 @@ const SortableTodoItem = memo(function SortableTodoItem({
           onChange={(e) => setEditingText(e.target.value)}
           onBlur={handleEditSave}
           onKeyDown={handleEditKeyDown}
-          className="flex-1 bg-transparent border-b border-cyan-500 outline-none text-[var(--foreground)]"
+          className="flex-1 bg-transparent border-b border-cyan-500 outline-none"
+          style={{ color: item.textColor && !item.completed ? item.textColor : "var(--foreground)" }}
         />
       ) : (
         <Tooltip
@@ -232,6 +334,18 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
     updateItems(newItems);
   };
 
+  const updateStyle = (id: string, type: 'border' | 'bg' | 'text', color: string) => {
+    const newItems = memoData.items.map(item => {
+      if (item.id === id) {
+        if (type === 'border') return { ...item, borderColor: color };
+        if (type === 'bg') return { ...item, backgroundColor: color };
+        if (type === 'text') return { ...item, textColor: color };
+      }
+      return item;
+    });
+    updateItems(newItems);
+  };
+
   const deleteItem = (id: string) => {
     toast.confirm("정말 이 항목을 삭제하시겠습니까?", () => {
       const newItems = memoData.items.filter(item => item.id !== id);
@@ -334,6 +448,7 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
                         handleEditKeyDown={handleEditKeyDown}
                         toggleCompleted={toggleCompleted}
                         deleteItem={deleteItem}
+                        updateStyle={updateStyle}
                         isReadOnly={isReadOnly}
                       />
                     ))}
