@@ -5,14 +5,14 @@ import { toast } from "@/app/components/toast";
 import { useVisualToggleStore } from "@/app/store/visual-toggle-store";
 
 export const CustomTab = memo(function CustomTab(props: IDockviewPanelHeaderProps) {
-  const { updateTitle, isEncrypted } = useContext(MemoContext);
+  const { updateTitle, isEncrypted, titles } = useContext(MemoContext);
   const { lockedTabs } = useVisualToggleStore();
   const isLocked = lockedTabs[props.api.id] === true;
   const [isEditing, setIsEditing] = useState(false);
   const [tempTitle, setTempTitle] = useState(props.api.title || "");
 
   const displayTitle = isEncrypted
-    ? (props.api.id.startsWith("todo") ? "TO-DO LIST" : props.api.id.startsWith("spreadsheet") ? "SPREADSHEET" : "MEMO")
+    ? (titles[props.api.id] || (props.api.id.startsWith("todo") ? "TO-DO LIST" : props.api.id.startsWith("spreadsheet") ? "SPREADSHEET" : "MEMO"))
     : props.api.title;
 
   // Sync tempTitle with props.api.title when it changes externally

@@ -8,7 +8,7 @@ import { DEFAULT_MEMOS } from "@/app/constants/default";
 
 export const EditorPanel = memo(function EditorPanel(props: IDockviewPanelProps) {
   const { memos, isReadOnly, updateMemo, isEncrypted } = useContext(MemoContext);
-  const memo = isEncrypted ? DEFAULT_MEMOS.memo1 : (memos[props.api.id] || "");
+  const memo = memos[props.api.id] || (isEncrypted ? DEFAULT_MEMOS.memo1 : "");
   const { lockedTabs } = useVisualToggleStore();
   const isLocked = lockedTabs[props.api.id] === true;
 

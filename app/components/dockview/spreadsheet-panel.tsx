@@ -23,7 +23,7 @@ export function SpreadsheetPanel(props: IDockviewPanelProps) {
   const [remountKey, setRemountKey] = useState(0);
   
   const getInitialData = () => {
-    return isEncrypted ? DEFAULT_MEMOS.spreadsheet1 : (memos[id] || [{ name: "Sheet1", celldata: [] }]);
+    return memos[id] || (isEncrypted ? DEFAULT_MEMOS.spreadsheet1 : [{ name: "Sheet1", celldata: [] }]);
   };
   
   const initialData = useRef(getInitialData());

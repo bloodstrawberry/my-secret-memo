@@ -143,7 +143,7 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
   const { settings } = useSettings();
   const { lockedTabs } = useVisualToggleStore();
   const isLocked = lockedTabs[props.api.id] === true;
-  const memoData: TodoData = isEncrypted ? DEFAULT_MEMOS.todo1 : (memos[props.api.id] || { items: [] });
+  const memoData: TodoData = memos[props.api.id] || DEFAULT_MEMOS.todo1;
   const [inputValue, setInputValue] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
