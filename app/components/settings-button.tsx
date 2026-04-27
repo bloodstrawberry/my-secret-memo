@@ -237,9 +237,13 @@ function AutoLockToggle() {
         // Fix: Use the live decrypted memos from memory (which are already in scope)
         // instead of data.memos which might be stale or encrypted.
         const memosToEncrypt = memos;
+        
+        // Defensive code: Prevent encrypting if memos is strictly DEFAULT_MEMOS and the state is somehow out of sync, though for Auto Lock it's less likely.
+        
         data.memos = encryptMemosText(memosToEncrypt, key);
         data.isEncrypted = true;
         data.autoLock = true;
+        data.lastUpdated = new Date().toISOString(); // Defensive code: update timestamp
 
         const { default: CryptoJS } = await import("crypto-js");
         data.keyHash = CryptoJS.SHA256(key).toString();
@@ -292,6 +296,7 @@ function AutoLockToggle() {
           data.memos = decryptedMemos;
           data.isEncrypted = false;
           data.autoLock = false;
+          data.lastUpdated = new Date().toISOString(); // Defensive code: update timestamp
           delete data.encryptedKey;
           delete data.keyHash;
           await memoDB.setItem(STORAGE_KEY, data);

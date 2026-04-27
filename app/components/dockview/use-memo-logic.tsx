@@ -709,12 +709,22 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
 
         useLoadingOverlay.getState().show("암호화 중...");
         try {
+          debouncedPersist.cancel(); // Defensive code: cancel pending saves
           skipPersistRef.current = true; // Block auto-persistence during lock process
           
           let data = await memoDB.getItem<any>(STORAGE_KEY) || {};
           
           // Capture LATEST state including layout and titles
           const memosToEncrypt = stateRef.current.memos;
+
+          // Defensive code: prevent encrypting the DEFAULT_MEMOS if it was already reset
+          if (memosToEncrypt === DEFAULT_MEMOS) {
+            console.warn("Attempted to encrypt DEFAULT_MEMOS, aborting to prevent data loss.");
+            skipPersistRef.current = false;
+            useLoadingOverlay.getState().hide();
+            return;
+          }
+
           const titlesToEncrypt = stateRef.current.titles;
           const layoutToEncrypt = apiRef.current?.toJSON();
 
@@ -722,6 +732,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
           data.titles = titlesToEncrypt;
           data.layout = layoutToEncrypt;
           data.isEncrypted = true;
+          data.lastUpdated = new Date().toISOString(); // Defensive code: update timestamp
           
           const { default: CryptoJS } = await import("crypto-js");
           data.keyHash = CryptoJS.SHA256(key).toString();
@@ -763,10 +774,12 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
         }
       }, { placeholder: "암호화 키 입력" });
     } else {
-      showSecurePrompt("암호화 key를 입력하세요", async (key) => {
+      showSecurePrompt("복호화 key를 입력하세요", async (key) => {
         if (!key) return;
         useLoadingOverlay.getState().show("복호화 중...");
         try {
+          debouncedPersist.cancel(); // Defensive code: cancel pending saves
+          skipPersistRef.current = true; // Block early
           const data = await memoDB.getItem<any>(STORAGE_KEY);
           if (data && data.isEncrypted && data.memos) {
             let isValid = false;
@@ -789,7 +802,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
             useAutoLockStore.getState().setKeyError(false);
 
             const decryptedMemos = decryptMemosText(data.memos, key);
-            skipPersistRef.current = true; // Block auto-persistence during unlock process
+            skipPersistRef.current = true; // Ensure blocked auto-persistence during unlock process
 
             if (autoLockEnabled) {
               // Auto-lock ON: decrypt in memory only, keep encrypted in IndexedDB
@@ -821,6 +834,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
               // Normal unlock: save decrypted to IndexedDB
               data.memos = decryptedMemos;
               data.isEncrypted = false;
+              data.lastUpdated = new Date().toISOString(); // Defensive code: update timestamp
               delete data.encryptedKey;
               delete data.keyHash;
               await memoDB.setItem(STORAGE_KEY, data);
