@@ -401,6 +401,14 @@ function MemoResetButton() {
         <span className="whitespace-nowrap">To-Do List 초기화</span>
       </button>
 
+      <button
+        onClick={() => { resetData("page"); setIsExpanded(false); }}
+        className="flex items-center gap-4 px-4 py-2.5 rounded-xl bg-orange-500/10 hover:bg-orange-500/20 text-orange-500 transition-all text-sm font-bold text-left w-full group"
+      >
+        <Icon icon="material-symbols:restart-alt-rounded" className="w-5 h-5 opacity-80 group-hover:opacity-100 transition-opacity" />
+        <span className="whitespace-nowrap">현재 페이지 초기화</span>
+      </button>
+
       <div className="my-1 border-t border-[var(--border-color)] opacity-30" />
 
       <button

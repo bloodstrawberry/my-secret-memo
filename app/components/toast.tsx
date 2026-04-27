@@ -175,7 +175,7 @@ export const toast = {
       icon: <Icon icon="material-symbols:warning-outline" className="w-5 h-5 text-amber-500" />,
     }),
   // Custom confirmation toast
-  confirm: (message: string, onConfirm: () => void, options?: { confirmText?: string; cancelText?: string; type?: "info" | "warning" | "danger" }) => {
+  confirm: (message: React.ReactNode, onConfirm: () => void, options?: { confirmText?: string; cancelText?: string; type?: "info" | "warning" | "danger" }) => {
     sonnerToast.dismiss();
     const type = options?.type || "info";
     const iconMap = {

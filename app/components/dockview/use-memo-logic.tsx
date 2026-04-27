@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { debounce } from "es-toolkit";
 import { toast } from "@/app/components/toast";
 import { showSecurePrompt } from "@/app/components/secure-prompt";
@@ -399,12 +399,17 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     persistState({ titles: nextTitles, memos: nextMemos });
   }, [persistState]);
 
-  const resetData = useCallback((type: "options" | "memos" | "todos" | "all" = "all") => {
-    const messages = {
+  const resetData = useCallback((type: "options" | "memos" | "todos" | "page" | "all" = "all") => {
+    const messages: Record<string, React.ReactNode> = {
       options: "모든 설정을 초기화하시겠습니까?",
       memos: "모든 메모를 초기화하시겠습니까?",
       todos: "모든 To-Do List를 초기화하시겠습니까?",
-      all: "모든 메모 데이터와 설정을 초기화하시겠습니까?"
+      page: "현재 페이지의 내용을 초기화하시겠습니까?",
+      all: (
+        <span>
+          <span className="text-red-500 font-bold">모든 데이터의 이력</span>과 설정을 초기화하시겠습니까?
+        </span>
+      )
     };
 
     toast.confirm(messages[type], async () => {
@@ -412,6 +417,29 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
         setSettings(DEFAULT_SETTINGS);
         persistState({ settings: DEFAULT_SETTINGS });
         toast.success("설정이 초기화되었습니다.");
+        return;
+      }
+
+      if (type === "page") {
+        if (!apiRef.current) return;
+        const activePanel = apiRef.current.activePanel;
+        if (!activePanel) {
+          toast.error("초기화할 활성 페이지가 없습니다.");
+          return;
+        }
+        const id = activePanel.id;
+        let defaultValue: any = { type: "doc", content: [{ type: "paragraph" }] };
+
+        if (id.startsWith("todo")) {
+          defaultValue = { items: [] };
+        } else if (id.startsWith("spreadsheet")) {
+          defaultValue = [{ name: "Sheet1", celldata: [], status: 1 }];
+        }
+
+        const nextMemos = { ...stateRef.current.memos, [id]: defaultValue };
+        setMemos(nextMemos);
+        persistState({ memos: nextMemos });
+        toast.success("현재 페이지가 초기화되었습니다.");
         return;
       }
 
