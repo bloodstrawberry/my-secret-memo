@@ -225,7 +225,7 @@ export function Header({
                 initial={{ opacity: 0, y: 10, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                style={{ minWidth: 200 }}
+                style={{ minWidth: 150 }}
                 className="absolute top-full right-0 mt-2 bg-[var(--panel-bg)] border border-[var(--border-color)] rounded-2xl shadow-2xl z-50 p-2 backdrop-blur-xl flex flex-col gap-1"
               >
                 <button
@@ -246,7 +246,7 @@ export function Header({
                   className="flex items-center gap-4 px-4 py-2.5 rounded-xl hover:bg-cyan-500/10 text-[var(--foreground)] transition-colors text-sm font-medium text-left w-full"
                 >
                   <Icon icon="mdi:history" className="w-5 h-5 text-amber-500 flex-shrink-0" />
-                  <span className="whitespace-nowrap">전체 데이터 (이력 포함)</span>
+                  <span className="whitespace-nowrap">전체 데이터</span>
                 </button>
               </motion.div>
             )}

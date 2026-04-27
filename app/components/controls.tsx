@@ -3,9 +3,8 @@ import * as React from 'react';
 import { Icon } from '@iconify/react';
 import { useVisualToggleStore } from "@/app/store/visual-toggle-store";
 import { toast } from "@/app/components/toast";
-import CryptoJS from "crypto-js";
 import { MemoContext } from "./dockview/context";
-import { encryptSingleMemo, decryptSingleMemo } from "./dockview/utils";
+import { encryptSingleMemo, decryptSingleMemo, hashPassword } from "./dockview/utils";
 
 const HeaderIcon = (props: {
   icon: string;
@@ -60,7 +59,7 @@ export const RightControls = (props: IDockviewHeaderActionsProps) => {
       // Unlock attempt
       toast.passwordPrompt("비밀번호를 입력하여 잠금을 해제하세요", (val) => {
         if (!val) return;
-        const hash = CryptoJS.SHA256(val).toString();
+        const hash = hashPassword(val);
         if (hash === tabLocks[activePanelId]) {
           try {
             const decrypted = decryptSingleMemo(activePanelId, currentContent, val);
@@ -81,7 +80,7 @@ export const RightControls = (props: IDockviewHeaderActionsProps) => {
           toast.error("비밀번호를 입력해야 합니다.");
           return;
         }
-        const hash = CryptoJS.SHA256(val).toString();
+        const hash = hashPassword(val);
         try {
           const encrypted = encryptSingleMemo(activePanelId, currentContent, val);
           setTabLock(activePanelId, hash, val);

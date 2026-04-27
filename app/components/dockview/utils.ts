@@ -1,5 +1,13 @@
 import CryptoJS from "crypto-js";
 
+/** Fixed salt to ensure consistent hashing independent of external factors (like dates) */
+const PASSWORD_SALT = "my-secret-memo-v1-fixed-salt";
+
+/** Salted hashing to uniquely identify and verify passwords */
+export function hashPassword(password: string): string {
+  return CryptoJS.SHA256(password + PASSWORD_SALT).toString();
+}
+
 // ── Helper: extract plain text from tiptap JSON ──
 export function extractTextFromJSON(node: any): string {
   if (!node) return "";
@@ -138,6 +146,7 @@ export const decryptMemosText = (memos: any, key: string) => {
   }
   return result;
 };
+
 export const encryptSingleMemo = (id: string, content: any, key: string) => {
   const processNode = (node: any): any => {
     if (!node) return node;

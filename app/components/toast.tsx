@@ -183,6 +183,7 @@ export const toast = {
     sonnerToast.warning(message, {
       icon: <Icon icon="material-symbols:warning-outline" className="w-5 h-5 text-amber-500" />,
     }),
+  dismiss: (id?: string | number) => sonnerToast.dismiss(id),
   // Custom confirmation toast
   confirm: (message: React.ReactNode, onConfirm: () => void, options?: { confirmText?: string; cancelText?: string; type?: "info" | "warning" | "danger" }) => {
     sonnerToast.dismiss();

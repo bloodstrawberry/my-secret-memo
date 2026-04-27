@@ -10,7 +10,7 @@ import { showSecurePrompt } from "@/app/components/secure-prompt";
 import { toast } from "@/app/components/toast";
 import { memoDB } from "@/app/library/indexDB";
 import { DEFAULT_MEMOS, DEFAULT_TITLES } from "@/app/constants/default";
-import { encryptMemosText } from "@/app/components/dockview/utils";
+import { encryptMemosText, hashPassword } from "@/app/components/dockview/utils";
 import { useLoadingOverlay } from "@/app/store/loading-overlay-store";
 import { useHistoryStore } from "@/app/store/history-store";
 import { useEffect, useRef } from "react";
@@ -247,8 +247,7 @@ function AutoLockToggle() {
         data.autoLock = true;
         data.lastUpdated = new Date().toISOString(); // Defensive code: update timestamp
 
-        const { default: CryptoJS } = await import("crypto-js");
-        data.keyHash = CryptoJS.SHA256(key).toString();
+        data.keyHash = hashPassword(key);
         delete data.encryptedKey;
 
         await memoDB.setItem(STORAGE_KEY, data);
@@ -278,7 +277,7 @@ function AutoLockToggle() {
           let isValid = false;
           const { default: CryptoJS } = await import("crypto-js");
           if (data.keyHash) {
-            isValid = (CryptoJS.SHA256(key).toString() === data.keyHash);
+            isValid = (hashPassword(key) === data.keyHash);
           } else if (data.encryptedKey) {
             const bytes = CryptoJS.AES.decrypt(data.encryptedKey, "my-secret-memo-salt");
             const decKey = bytes.toString(CryptoJS.enc.Utf8);

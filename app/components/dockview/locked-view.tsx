@@ -5,8 +5,7 @@ import { motion } from 'framer-motion';
 import { MemoContext } from './context';
 import { toast } from '@/app/components/toast';
 import { useVisualToggleStore } from "@/app/store/visual-toggle-store";
-import CryptoJS from "crypto-js";
-import { decryptSingleMemo } from "./utils";
+import { decryptSingleMemo, hashPassword } from "./utils";
 
 interface LockedViewProps {
   panelId: string;
@@ -19,7 +18,7 @@ export const LockedView = ({ panelId }: LockedViewProps) => {
   const handleUnlockClick = () => {
     toast.passwordPrompt("비밀번호를 입력하여 잠금을 해제하세요", (val) => {
       if (!val) return;
-      const hash = CryptoJS.SHA256(val).toString();
+      const hash = hashPassword(val);
       if (hash === tabLocks[panelId]) {
         try {
           const currentContent = memos[panelId];

@@ -9,7 +9,7 @@ import { useAutoLockStore } from "@/app/store/auto-lock-store";
 import { useHistoryStore } from "@/app/store/history-store";
 import { useLoadingOverlay } from "@/app/store/loading-overlay-store";
 import { EditorSettings, DEFAULT_SETTINGS } from "@/app/context/settings-context";
-import { encryptMemosText, decryptMemosText } from "./utils";
+import { encryptMemosText, decryptMemosText, hashPassword } from "./utils";
 import { DockviewReadyEvent } from "dockview";
 
 const MAX_HISTORY = 100;
@@ -681,6 +681,17 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // 1. 안내 메시지 표시 (1초)
+    const toastId = toast.info("현재 데이터를 저장하고 업로드 합니다");
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    toast.dismiss(toastId);
+
+    // 2. 현재 상태 저장
+    await persistState({ silent: true });
+
+    // 3. Backup: 전체 데이터(이력 포함) 다운로드
+    await downloadData("full");
+
     useLoadingOverlay.getState().show("업로드 중...");
 
     const reader = new FileReader();
@@ -807,8 +818,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
           data.isEncrypted = true;
           data.lastUpdated = new Date().toISOString(); // Defensive code: update timestamp
 
-          const { default: CryptoJS } = await import("crypto-js");
-          data.keyHash = CryptoJS.SHA256(key).toString();
+          data.keyHash = hashPassword(key);
           delete data.encryptedKey;
 
           if (autoLockEnabled) {
@@ -859,7 +869,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
             let isValid = false;
             const { default: CryptoJS } = await import("crypto-js");
             if (data.keyHash) {
-              isValid = (CryptoJS.SHA256(key).toString() === data.keyHash);
+              isValid = (hashPassword(key) === data.keyHash);
             } else if (data.encryptedKey) {
               const bytes = CryptoJS.AES.decrypt(data.encryptedKey, "my-secret-memo-salt");
               const decKey = bytes.toString(CryptoJS.enc.Utf8);
