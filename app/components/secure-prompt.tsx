@@ -48,7 +48,7 @@ function convertKoreanToEnglish(text: string): string {
   let result = "";
   for (let i = 0; i < text.length; i++) {
     const code = text.charCodeAt(i);
-    
+
     // Hangul Syllables (가-힣)
     if (code >= 0xAC00 && code <= 0xD7A3) {
       const syllableIndex = code - 0xAC00;
@@ -62,7 +62,7 @@ function convertKoreanToEnglish(text: string): string {
         const jong = JONGSUNG[jongsungIndex];
         result += JONGSUNG_MAP[jong] || KOR_KEY_MAP[jong] || "";
       }
-    } 
+    }
     // Single Jamo (ㄱ-ㅣ)
     else if (code >= 0x3131 && code <= 0x3163) {
       const jamo = text[i];
@@ -97,7 +97,12 @@ function SecurePromptModal({
   onClose: () => void;
 }) {
   const [value, setValue] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("secure-prompt-show-password") === "true";
+    }
+    return false;
+  });
   const [isClosing, setIsClosing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
@@ -106,7 +111,6 @@ function SecurePromptModal({
   useEffect(() => {
     if (state.isOpen) {
       setValue("");
-      setShowPassword(false);
       setIsClosing(false);
       // Focus the input after mount
       requestAnimationFrame(() => {
@@ -159,17 +163,15 @@ function SecurePromptModal({
     <div
       ref={backdropRef}
       onClick={handleBackdropClick}
-      className={`fixed inset-0 z-[9999] flex items-start justify-center pt-[15vh] transition-all duration-200 ${
-        isClosing ? "opacity-0" : "opacity-100"
-      }`}
+      className={`fixed inset-0 z-[9999] flex items-start justify-center pt-[15vh] transition-all duration-200 ${isClosing ? "opacity-0" : "opacity-100"
+        }`}
       style={{ backgroundColor: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)" }}
     >
       <div
-        className={`w-full max-w-sm mx-4 rounded-2xl border shadow-2xl transition-all duration-200 ${
-          isClosing
+        className={`w-full max-w-sm mx-4 rounded-2xl border shadow-2xl transition-all duration-200 ${isClosing
             ? "opacity-0 scale-95 translate-y-2"
             : "opacity-100 scale-100 translate-y-0"
-        }`}
+          }`}
         style={{
           backgroundColor: "var(--panel-bg)",
           borderColor: "var(--border-color)",
@@ -218,7 +220,7 @@ function SecurePromptModal({
                 const converted = convertKoreanToEnglish(val);
                 setValue(converted);
               }}
-              onKeyDown={handleKeyDown} 
+              onKeyDown={handleKeyDown}
               onFocus={(e) => {
                 e.target.style.borderColor = "rgba(244,63,94,0.6)";
                 e.target.style.boxShadow = "inset 0 1px 3px rgba(0,0,0,0.06), 0 0 0 3px rgba(244,63,94,0.15)";
@@ -229,7 +231,11 @@ function SecurePromptModal({
               }}
             />
             <button
-              onClick={() => setShowPassword(!showPassword)}
+              onClick={() => {
+                const next = !showPassword;
+                setShowPassword(next);
+                localStorage.setItem("secure-prompt-show-password", String(next));
+              }}
               className="absolute right-2.5 p-1 rounded-md transition-colors z-10"
               style={{
                 color: "rgba(244,63,94,0.5)",
@@ -249,8 +255,8 @@ function SecurePromptModal({
               <Icon
                 icon={
                   showPassword
-                    ? "material-symbols:visibility-off-outline"
-                    : "material-symbols:visibility-outline"
+                    ? "material-symbols:visibility-outline"
+                    : "material-symbols:visibility-off-outline"
                 }
                 className="w-4 h-4"
               />
