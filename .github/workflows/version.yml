@@ -1,0 +1,52 @@
+name: Version Update
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  update-version:
+    # Commit message containing [version update] will be ignored to prevent infinite loops
+    if: "!contains(github.event.head_commit.message, '[version update]')"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Increment Version
+        id: increment_version
+        run: |
+          NEW_VERSION=$(node -e "
+            const fs = require('fs');
+            const filePath = 'app/components/dockview/header.tsx';
+            let content = fs.readFileSync(filePath, 'utf8');
+            const regex = /v(\d+)\.(\d+)\.(\d+)/;
+            const match = content.match(regex);
+            if (match) {
+              const major = match[1];
+              const minor = match[2];
+              const patch = parseInt(match[3]) + 1;
+              const newV = \`v\${major}.\${minor}.\${patch}\`;
+              content = content.replace(regex, newV);
+              fs.writeFileSync(filePath, content);
+              process.stdout.write(newV);
+            } else {
+              process.exit(1);
+            }
+          ")
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "Updated to $NEW_VERSION"
+
+      - name: Commit and Push
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add app/components/dockview/header.tsx
+          git commit -m "[version update] ${{ steps.increment_version.outputs.new_version }} [skip ci]"
+          git push
