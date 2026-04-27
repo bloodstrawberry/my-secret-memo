@@ -291,7 +291,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
   // Prevent accidental reload/close with unsaved changes
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (skipPersistRef.current) return;
+      if (skipPersistRef.current || (window as any).__skipBeforeUnload) return;
 
       // Skip confirmation if the app is locked (edits aren't saved while locked anyway)
       const { autoLockEnabled, sessionKey } = useAutoLockStore.getState();
@@ -773,7 +773,8 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
               // Normal unlock: save decrypted to IndexedDB
               data.memos = decryptedMemos;
               data.isEncrypted = false;
-              data.encryptedKey = null;
+              delete data.encryptedKey;
+              delete data.keyHash;
               await memoDB.setItem(STORAGE_KEY, data);
               setIsEncrypted(false);
               isEncryptedRef.current = false;

@@ -242,7 +242,8 @@ function AutoLockToggle() {
         data.autoLock = true;
 
         const { default: CryptoJS } = await import("crypto-js");
-        data.encryptedKey = CryptoJS.AES.encrypt(key, "my-secret-memo-salt").toString();
+        data.keyHash = CryptoJS.SHA256(key).toString();
+        delete data.encryptedKey;
 
         await memoDB.setItem(STORAGE_KEY, data);
 
@@ -253,7 +254,10 @@ function AutoLockToggle() {
 
         toast.success("AUTO LOCK이 활성화되었습니다.");
         // Reload to show locked state
-        setTimeout(() => window.location.reload(), 800);
+        setTimeout(() => {
+          (window as any).__skipBeforeUnload = true;
+          window.location.reload();
+        }, 800);
       }, { placeholder: "암호화 키 입력" });
     } else {
       // Turning OFF: confirm first, then decrypt and disable
@@ -266,8 +270,10 @@ function AutoLockToggle() {
         const data = await memoDB.getItem<any>(STORAGE_KEY);
         if (data && data.isEncrypted && data.memos) {
           let isValid = false;
-          if (data.encryptedKey) {
-            const { default: CryptoJS } = await import("crypto-js");
+          const { default: CryptoJS } = await import("crypto-js");
+          if (data.keyHash) {
+            isValid = (CryptoJS.SHA256(key).toString() === data.keyHash);
+          } else if (data.encryptedKey) {
             const bytes = CryptoJS.AES.decrypt(data.encryptedKey, "my-secret-memo-salt");
             const decKey = bytes.toString(CryptoJS.enc.Utf8);
             isValid = (decKey === key);
@@ -286,7 +292,8 @@ function AutoLockToggle() {
           data.memos = decryptedMemos;
           data.isEncrypted = false;
           data.autoLock = false;
-          data.encryptedKey = null;
+          delete data.encryptedKey;
+          delete data.keyHash;
           await memoDB.setItem(STORAGE_KEY, data);
 
           setSessionKey(null);
@@ -294,7 +301,10 @@ function AutoLockToggle() {
           setKeyError(false);
 
           toast.success("AUTO LOCK이 해제되었습니다.");
-          setTimeout(() => window.location.reload(), 800);
+          setTimeout(() => {
+            (window as any).__skipBeforeUnload = true;
+            window.location.reload();
+          }, 800);
         } else {
           useLoadingOverlay.getState().hide();
           setSessionKey(null);
