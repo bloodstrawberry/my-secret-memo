@@ -52,6 +52,8 @@ interface SortableTodoItemProps {
   toggleCompleted: (id: string) => void;
   deleteItem: (id: string) => void;
   updateStyle: (id: string, type: 'border' | 'bg' | 'text', color: string) => void;
+  activeTab: 'border' | 'bg' | 'text';
+  setActiveTab: (tab: 'border' | 'bg' | 'text') => void;
   isReadOnly?: boolean;
 }
 
@@ -66,6 +68,8 @@ const SortableTodoItem = memo(function SortableTodoItem({
   toggleCompleted,
   deleteItem,
   updateStyle,
+  activeTab,
+  setActiveTab,
   isReadOnly,
 }: SortableTodoItemProps) {
   const {
@@ -77,7 +81,6 @@ const SortableTodoItem = memo(function SortableTodoItem({
     isDragging,
   } = useSortable({ id: item.id });
 
-  const [activeTab, setActiveTab] = useState<'border' | 'bg' | 'text'>('text');
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
 
@@ -125,7 +128,6 @@ const SortableTodoItem = memo(function SortableTodoItem({
     ...(item.textColor && !item.completed ? { color: item.textColor } : {}),
   };
 
-  const hasCustomStyle = !!(item.borderColor || item.backgroundColor || item.textColor);
 
   return (
     <div
@@ -133,7 +135,7 @@ const SortableTodoItem = memo(function SortableTodoItem({
       style={containerStyle}
       className={`group flex items-center gap-3 p-3 rounded-xl border transition-all flex-shrink-0 ${item.completed
         ? "bg-slate-500/5 border-transparent text-slate-400"
-        : !hasCustomStyle ? "bg-[var(--background)] border-[var(--border-color)] hover:border-cyan-500/50 text-[var(--foreground)] shadow-sm" : "shadow-sm"
+        : "bg-[var(--background)] border-[var(--border-color)] hover:border-cyan-500/50 text-[var(--foreground)] shadow-sm"
         } ${isDragging ? "shadow-lg border-cyan-500" : ""}`}
     >
       <div className="flex items-center gap-1 flex-shrink-0">
@@ -263,6 +265,12 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
   const [inputValue, setInputValue] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
+  const [activeTab, setActiveTab] = useState<'border' | 'bg' | 'text'>('border');
+  const [lastStyles, setLastStyles] = useState({
+    border: '',
+    bg: '',
+    text: ''
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -291,6 +299,9 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
       id: `todo-${Date.now()}`,
       text: inputValue.trim(),
       completed: false,
+      borderColor: lastStyles.border,
+      backgroundColor: lastStyles.bg,
+      textColor: lastStyles.text,
     };
     updateItems([...memoData.items, newItem]);
     setInputValue("");
@@ -335,6 +346,7 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
   };
 
   const updateStyle = (id: string, type: 'border' | 'bg' | 'text', color: string) => {
+    setLastStyles(prev => ({ ...prev, [type]: color }));
     const newItems = memoData.items.map(item => {
       if (item.id === id) {
         if (type === 'border') return { ...item, borderColor: color };
@@ -449,6 +461,8 @@ export const TodoListPanel = memo(function TodoListPanel(props: IDockviewPanelPr
                         toggleCompleted={toggleCompleted}
                         deleteItem={deleteItem}
                         updateStyle={updateStyle}
+                        activeTab={activeTab}
+                        setActiveTab={setActiveTab}
                         isReadOnly={isReadOnly}
                       />
                     ))}
