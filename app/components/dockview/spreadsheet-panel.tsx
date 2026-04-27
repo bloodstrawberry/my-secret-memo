@@ -66,11 +66,26 @@ export function SpreadsheetPanel(props: IDockviewPanelProps) {
 
     // Check if the data or encryption state has actually changed externally
     const currentRawData = memos[id];
-    if (currentRawData !== lastRawDataRef.current || isEncrypted !== lastEncryptedRef.current) {
+    let isDataChanged = false;
+    
+    if (currentRawData !== lastRawDataRef.current) {
+      try {
+        if (JSON.stringify(currentRawData) !== JSON.stringify(lastRawDataRef.current)) {
+          isDataChanged = true;
+        }
+      } catch (e) {
+        isDataChanged = true;
+      }
+    }
+
+    if (isDataChanged || isEncrypted !== lastEncryptedRef.current) {
       lastRawDataRef.current = currentRawData;
       lastEncryptedRef.current = isEncrypted;
       initialData.current = getInitialData();
       setRemountKey(prev => prev + 1);
+    } else {
+      // Even if data didn't change structurally, update the ref to the latest to avoid redundant stringify
+      lastRawDataRef.current = currentRawData;
     }
   }, [id, memos[id], isEncrypted, getInitialData]);
 

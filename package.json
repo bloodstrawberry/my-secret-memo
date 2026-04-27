@@ -82,6 +82,8 @@
     "crypto-js": "^4.2.0",
     "date-fns": "^4.1.0",
     "dayjs": "^1.11.20",
+    "dexie": "^4.4.2",
+    "dexie-react-hooks": "^4.4.0",
     "dockview": "^5.2.0",
     "embla-carousel": "^8.6.0",
     "embla-carousel-auto-height": "^8.6.0",

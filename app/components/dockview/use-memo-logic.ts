@@ -27,6 +27,10 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
   const [titles, setTitles] = useState<Record<string, string>>({});
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const isMountedRef = useRef(false);
+  useEffect(() => {
+    isMountedRef.current = isMounted;
+  }, [isMounted]);
   const [settings, setSettings] = useState<EditorSettings>(DEFAULT_SETTINGS);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success">("idle");
   const [progressWidth, setProgressWidth] = useState("0%");
@@ -138,6 +142,9 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
         if (oldData.encryptedKey) currentState.encryptedKey = oldData.encryptedKey;
       }
 
+      // Synchronously update the ref to prevent redundant liveQuery updates when we save locally
+      stateRef.current.lastUpdated = currentState.lastUpdated;
+
       await memoDB.setItem(STORAGE_KEY, currentState);
       lastSaveTimeRef.current = Date.now();
       lastSavedVersionRef.current = Math.max(lastSavedVersionRef.current, saveVersion);
@@ -194,14 +201,48 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     }, 1000)
     , []);
 
-  // Initial load
+  // Initial load & Cross-tab sync
   useEffect(() => {
-    const loadInitialData = async () => {
-      const savedData = await memoDB.getItem<any>(STORAGE_KEY);
+    const subscription = memoDB.observeItem<any>(STORAGE_KEY).subscribe({
+      next: (savedData) => {
+        if (!savedData) {
+          if (!isMountedRef.current) {
+            const legacyMemos = localStorage.getItem(STORAGE_KEYS.MEMOS);
+            const legacyTitles = localStorage.getItem(STORAGE_KEYS.TITLES);
+            const legacySettings = localStorage.getItem(STORAGE_KEYS.SETTINGS);
+            const legacyTheme = localStorage.getItem(STORAGE_KEYS.THEME);
 
-      if (savedData) {
-        // If auto-lock is ON, always force encrypted state on load
-        // (the session key is lost on reload so data stays locked)
+            const initialMemos = legacyMemos ? JSON.parse(legacyMemos) : DEFAULT_MEMOS;
+            const initialTitles = legacyTitles ? JSON.parse(legacyTitles) : DEFAULT_TITLES;
+            const initialSettings = legacySettings ? JSON.parse(legacySettings) : DEFAULT_SETTINGS;
+            const initialIsDark = legacyTheme === "dark";
+
+            setMemos(initialMemos);
+            setTitles(initialTitles);
+            setSettings(initialSettings);
+            setIsDarkMode(initialIsDark);
+
+            stateRef.current = {
+              memos: initialMemos,
+              titles: initialTitles,
+              settings: initialSettings,
+              isDarkMode: initialIsDark,
+              lastUpdated: null
+            };
+            setIsMounted(true);
+          }
+          return;
+        }
+
+        // If we are ignoring updates (e.g. during encryption/decryption)
+        if (skipPersistRef.current) return;
+
+        // Prevent redundant updates triggered by our own saves
+        if (isMountedRef.current && savedData.lastUpdated && savedData.lastUpdated === stateRef.current.lastUpdated) {
+          return;
+        }
+
+        // Apply external changes
         const autoLockOn = useAutoLockStore.getState().autoLockEnabled;
         if (savedData.isEncrypted || (autoLockOn && savedData.autoLock)) {
           setIsEncrypted(true);
@@ -234,7 +275,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
           if (dark) document.documentElement.classList.add("dark");
         }
         if (savedData.visualToggles) {
-          if (savedData.visualToggles.toolbarVisibility) {
+          if (savedData.visualToggles.toolbarVisibility !== undefined) {
             useVisualToggleStore.setState({ 
               toolbarVisibility: savedData.visualToggles.toolbarVisibility,
               tabLocks: savedData.visualToggles.tabLocks || {},
@@ -248,34 +289,13 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
         if (savedData.lastUpdated) {
           setLastUpdated(savedData.lastUpdated);
         }
-      } else {
-        const legacyMemos = localStorage.getItem(STORAGE_KEYS.MEMOS);
-        const legacyTitles = localStorage.getItem(STORAGE_KEYS.TITLES);
-        const legacySettings = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-        const legacyTheme = localStorage.getItem(STORAGE_KEYS.THEME);
 
-        const initialMemos = legacyMemos ? JSON.parse(legacyMemos) : DEFAULT_MEMOS;
-        const initialTitles = legacyTitles ? JSON.parse(legacyTitles) : DEFAULT_TITLES;
-        const initialSettings = legacySettings ? JSON.parse(legacySettings) : DEFAULT_SETTINGS;
-        const initialIsDark = legacyTheme === "dark";
+        setIsMounted(true);
+      },
+      error: (err) => console.error("observeItem error:", err)
+    });
 
-        setMemos(initialMemos);
-        setTitles(initialTitles);
-        setSettings(initialSettings);
-        setIsDarkMode(initialIsDark);
-
-        stateRef.current = {
-          memos: initialMemos,
-          titles: initialTitles,
-          settings: initialSettings,
-          isDarkMode: initialIsDark,
-          lastUpdated: null
-        };
-      }
-      setIsMounted(true);
-    };
-
-    loadInitialData();
+    return () => subscription.unsubscribe();
   }, []);
 
   // Update Theme DOM
