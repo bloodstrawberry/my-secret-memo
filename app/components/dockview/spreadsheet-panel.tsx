@@ -112,7 +112,7 @@ export function SpreadsheetPanel(props: IDockviewPanelProps) {
         "bold", "italic", "strike-through", "underline", "|", 
         "font-color", "background", "border", "merge-cell", "|", 
         "horizontal-align", "vertical-align", "text-wrap", "text-rotation", "|", 
-        "freeze", "sort", "image", "comment", "quick-formula",
+        "freeze", "sort", "comment", "quick-formula",
       ]
     };
   }, [handleChange, showToolbar, isReadOnly, remountKey]);
