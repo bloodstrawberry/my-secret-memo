@@ -117,6 +117,13 @@ const PromptContent = ({
   icon?: string;
 }) => {
   const [value, setValue] = React.useState("");
+  const [isSubmitted, setIsSubmitted] = React.useState(false);
+
+  const handleConfirm = () => {
+    if (isSubmitted) return;
+    setIsSubmitted(true);
+    onConfirm(value);
+  };
   
   return (
     <div className="flex flex-col gap-4 mt-3 w-full min-w-[300px]">
@@ -131,7 +138,7 @@ const PromptContent = ({
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
-              onConfirm(value);
+              handleConfirm();
             }
             if (e.key === "Escape") {
               onCancel();
@@ -142,13 +149,15 @@ const PromptContent = ({
       <div className="flex justify-end gap-2">
         <button
           onClick={onCancel}
-          className="px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-500/10 transition-colors text-slate-500"
+          disabled={isSubmitted}
+          className="px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-500/10 transition-colors text-slate-500 disabled:opacity-50"
         >
           {cancelText || "취소"}
         </button>
         <button
-          onClick={() => onConfirm(value)}
-          className="px-6 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 text-white shadow-lg shadow-cyan-500/20 hover:bg-cyan-600 transition-all active:scale-95"
+          onClick={handleConfirm}
+          disabled={isSubmitted}
+          className="px-6 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 text-white shadow-lg shadow-cyan-500/20 hover:bg-cyan-600 transition-all active:scale-95 disabled:opacity-50 disabled:scale-100"
         >
           {confirmText || "확인"}
         </button>
@@ -177,6 +186,13 @@ export const toast = {
   // Custom confirmation toast
   confirm: (message: React.ReactNode, onConfirm: () => void, options?: { confirmText?: string; cancelText?: string; type?: "info" | "warning" | "danger" }) => {
     sonnerToast.dismiss();
+    let isConfirmed = false;
+    const handleConfirm = () => {
+      if (isConfirmed) return;
+      isConfirmed = true;
+      onConfirm();
+    };
+
     const type = options?.type || "info";
     const iconMap = {
       info: <Icon icon="material-symbols:help-outline" className="w-5 h-5 text-cyan-500" />,
@@ -189,7 +205,7 @@ export const toast = {
       duration: Infinity,
       action: {
         label: options?.confirmText || "확인",
-        onClick: onConfirm,
+        onClick: handleConfirm,
       },
       cancel: {
         label: options?.cancelText || "취소",
