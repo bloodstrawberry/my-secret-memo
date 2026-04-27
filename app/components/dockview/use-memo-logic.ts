@@ -124,6 +124,15 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
 
     try {
       const oldData = await memoDB.getItem<any>(STORAGE_KEY);
+      
+      // Critical safety check: If a lock/unlock/upload process started while we were waiting
+      // for the DB read, we MUST abort this save to prevent data corruption or overwriting
+      // encrypted data with unencrypted data (or vice versa).
+      if (skipPersistRef.current) {
+        console.warn("Aborting persistState: skipPersistRef became true during async DB read");
+        return;
+      }
+
       if (oldData) {
         if (oldData.keyHash) currentState.keyHash = oldData.keyHash;
         if (oldData.encryptedKey) currentState.encryptedKey = oldData.encryptedKey;
@@ -299,8 +308,8 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
   }, [saveStatus]);
 
   const updateMemo = useCallback((id: string, val: any, immediate = false) => {
-    // Block writes in read-only history mode
-    if (useHistoryStore.getState().isReadOnly) return;
+    // Block writes in read-only history mode or during critical transitions (lock/unlock/upload)
+    if (useHistoryStore.getState().isReadOnly || skipPersistRef.current) return;
     versionRef.current++;
     lastInputTimeRef.current = Date.now();
     setSaveStatus(prev => prev !== "saving" ? "saving" : prev);
@@ -318,7 +327,8 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
   }, [debouncedPersist, persistState]);
 
   const updateTitle = useCallback((id: string, title: string) => {
-    if (useHistoryStore.getState().isReadOnly) return;
+    // Block during history mode or critical transitions
+    if (useHistoryStore.getState().isReadOnly || skipPersistRef.current) return;
     versionRef.current++;
     lastInputTimeRef.current = Date.now();
     setSaveStatus(prev => prev !== "saving" ? "saving" : prev);
@@ -354,7 +364,8 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
   }, [saveStatus]);
 
   const removeMemo = useCallback((id: string) => {
-    if (useHistoryStore.getState().isReadOnly) {
+    // Block during history mode or critical transitions
+    if (useHistoryStore.getState().isReadOnly || skipPersistRef.current) {
       return;
     }
     const nextMemos = { ...stateRef.current.memos };
@@ -484,9 +495,11 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
       : type === "todo" ? { items: [] }
         : [{ name: "Sheet1", celldata: [], status: 1 }];
 
-    setMemos(prev => ({ ...prev, [id]: initialContent }));
-    setTitles(prev => ({ ...prev, [id]: title }));
-    persistState();
+    const nextMemos = { ...stateRef.current.memos, [id]: initialContent };
+    const nextTitles = { ...stateRef.current.titles, [id]: title };
+    setMemos(nextMemos);
+    setTitles(nextTitles);
+    persistState({ memos: nextMemos, titles: nextTitles });
     toast.success(type === "memo" ? "새로운 메모가 생성되었습니다." : type === "todo" ? "새로운 To-Do List가 생성되었습니다." : "새로운 스프레드시트가 생성되었습니다.");
   }, [persistState, apiRef]);
 
@@ -648,15 +661,20 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
 
         useLoadingOverlay.getState().show("암호화 중...");
         try {
-          let data = await memoDB.getItem<any>(STORAGE_KEY);
-          if (!data) {
-            data = { memos: stateRef.current.memos, titles: stateRef.current.titles };
-          }
-          // Fix: Always use the decrypted live memos from memory when locking, 
-          // instead of potentially double-encrypting data already in the database.
+          skipPersistRef.current = true; // Block auto-persistence during lock process
+          
+          let data = await memoDB.getItem<any>(STORAGE_KEY) || {};
+          
+          // Capture LATEST state including layout and titles
           const memosToEncrypt = stateRef.current.memos;
+          const titlesToEncrypt = stateRef.current.titles;
+          const layoutToEncrypt = apiRef.current?.toJSON();
+
           data.memos = encryptMemosText(memosToEncrypt, key);
+          data.titles = titlesToEncrypt;
+          data.layout = layoutToEncrypt;
           data.isEncrypted = true;
+          
           const { default: CryptoJS } = await import("crypto-js");
           data.keyHash = CryptoJS.SHA256(key).toString();
           delete data.encryptedKey;
@@ -686,8 +704,13 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
           // Clear session key when manually locking
           setSessionKey(null);
 
-          setTimeout(() => useLoadingOverlay.getState().hide(), 600);
-        } catch {
+          setTimeout(() => {
+            skipPersistRef.current = false;
+            useLoadingOverlay.getState().hide();
+          }, 1000);
+        } catch (e) {
+          console.error("Encryption failed", e);
+          skipPersistRef.current = false;
           useLoadingOverlay.getState().hide();
         }
       }, { placeholder: "암호화 키 입력" });
@@ -718,6 +741,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
             useAutoLockStore.getState().setKeyError(false);
 
             const decryptedMemos = decryptMemosText(data.memos, key);
+            skipPersistRef.current = true; // Block auto-persistence during unlock process
 
             if (autoLockEnabled) {
               // Auto-lock ON: decrypt in memory only, keep encrypted in IndexedDB
@@ -732,14 +756,16 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
 
               // Restore layout from data when unlocking
               if (data.layout && apiRef.current) {
-                try {
-                  apiRef.current.fromJSON(data.layout);
-                  if (data.titles) {
-                    apiRef.current.panels.forEach(p => {
-                      if (data.titles[p.id]) p.api.setTitle(data.titles[p.id]);
-                    });
-                  }
-                } catch (e) { console.error("Layout restore failed during unlock", e); }
+                setTimeout(() => {
+                  try {
+                    apiRef.current?.fromJSON(data.layout);
+                    if (data.titles) {
+                      apiRef.current?.panels.forEach(p => {
+                        if (data.titles[p.id]) p.api.setTitle(data.titles[p.id]);
+                      });
+                    }
+                  } catch (e) { console.error("Layout restore failed during unlock", e); }
+                }, 0);
               }
 
               toast.success("잠금이 해제되었습니다. (AUTO LOCK 유지)");
@@ -758,14 +784,16 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
 
               // Restore layout from data when unlocking
               if (data.layout && apiRef.current) {
-                try {
-                  apiRef.current.fromJSON(data.layout);
-                  if (data.titles) {
-                    apiRef.current.panels.forEach(p => {
-                      if (data.titles[p.id]) p.api.setTitle(data.titles[p.id]);
-                    });
-                  }
-                } catch (e) { console.error("Layout restore failed during unlock", e); }
+                setTimeout(() => {
+                  try {
+                    apiRef.current?.fromJSON(data.layout);
+                    if (data.titles) {
+                      apiRef.current?.panels.forEach(p => {
+                        if (data.titles[p.id]) p.api.setTitle(data.titles[p.id]);
+                      });
+                    }
+                  } catch (e) { console.error("Layout restore failed during unlock", e); }
+                }, 0);
               }
 
               toast.success("암호화가 해제되었습니다.");
@@ -774,8 +802,13 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
             setIsEncrypted(false);
             isEncryptedRef.current = false;
           }
-          setTimeout(() => useLoadingOverlay.getState().hide(), 600);
-        } catch {
+          setTimeout(() => {
+            skipPersistRef.current = false;
+            useLoadingOverlay.getState().hide();
+          }, 1000);
+        } catch (e) {
+          console.error("Decryption failed", e);
+          skipPersistRef.current = false;
           useLoadingOverlay.getState().hide();
         }
       }, { placeholder: "복호화 키 입력" });

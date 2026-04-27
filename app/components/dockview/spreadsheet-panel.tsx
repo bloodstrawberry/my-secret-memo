@@ -19,27 +19,46 @@ export function SpreadsheetPanel(props: IDockviewPanelProps) {
   const isLocalChangeRef = useRef(false);
 
   // Remount key: incremented when memo data changes externally (e.g., after decrypt/unlock)
-  // This forces the Workbook to reinitialize with fresh data.
   const [remountKey, setRemountKey] = useState(0);
-  
-  const getInitialData = () => {
-    return memos[id] || (isEncrypted ? DEFAULT_MEMOS.spreadsheet1 : [{ name: "Sheet1", celldata: [] }]);
-  };
+
+  // Use a ref to track the last seen raw data to detect external changes
+  const lastRawDataRef = useRef<any>(null);
+
+  const getInitialData = useCallback(() => {
+    const data = memos[id] || (isEncrypted ? DEFAULT_MEMOS.spreadsheet1 : [{ name: "Sheet1", celldata: [] }]);
+    try {
+      // Deep clone to prevent FortuneSheet mutations from affecting our state
+      // and to ensure we have a fresh reference for the Workbook
+      return JSON.parse(JSON.stringify(data));
+    } catch (e) {
+      return data;
+    }
+  }, [id, memos, isEncrypted]);
   
   const initialData = useRef(getInitialData());
 
   // Detect external data changes (decrypt, upload, etc.) and reinitialize Workbook
+  const lastEncryptedRef = useRef(isEncrypted);
+
   useEffect(() => {
+    // If the change originated from this component's local edits, 
+    // we don't want to remount as that would reset scroll/selection.
     if (isLocalChangeRef.current) {
       isLocalChangeRef.current = false;
+      lastRawDataRef.current = memos[id];
+      lastEncryptedRef.current = isEncrypted;
       return;
     }
-    const currentData = getInitialData();
-    if (currentData && currentData !== initialData.current) {
-      initialData.current = currentData;
+
+    // Check if the data or encryption state has actually changed externally
+    const currentRawData = memos[id];
+    if (currentRawData !== lastRawDataRef.current || isEncrypted !== lastEncryptedRef.current) {
+      lastRawDataRef.current = currentRawData;
+      lastEncryptedRef.current = isEncrypted;
+      initialData.current = getInitialData();
       setRemountKey(prev => prev + 1);
     }
-  }, [memos[id], isEncrypted]);
+  }, [id, memos[id], isEncrypted, getInitialData]);
 
   const handleChange = useCallback((newData: any) => {
     // Block writes in read-only mode
