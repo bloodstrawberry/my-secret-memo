@@ -974,21 +974,55 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
       if (savedData) {
         const autoLockOn = useAutoLockStore.getState().autoLockEnabled;
         const sessionKeyVal = useAutoLockStore.getState().sessionKey;
-        if (savedData.isEncrypted && autoLockOn && sessionKeyVal) {
-          const decrypted = decryptMemosText(savedData.memos, sessionKeyVal);
-          setMemos(decrypted);
+        
+        let incomingMemos = savedData.memos;
+        let incomingIsEncrypted = !!savedData.isEncrypted;
+
+        if (incomingIsEncrypted && autoLockOn && sessionKeyVal) {
+          try {
+            incomingMemos = decryptMemosText(savedData.memos, sessionKeyVal);
+            incomingIsEncrypted = false;
+          } catch (e) {
+            console.error("Failed to decrypt live data on history exit", e);
+          }
+        }
+
+        if (incomingIsEncrypted) {
+          setIsEncrypted(true);
+          isEncryptedRef.current = true;
+          setMemos(DEFAULT_MEMOS);
+          setTitles(DEFAULT_TITLES);
+          stateRef.current.memos = DEFAULT_MEMOS;
+          stateRef.current.titles = DEFAULT_TITLES;
+        } else {
+          setIsEncrypted(false);
+          isEncryptedRef.current = false;
+          if (incomingMemos) setMemos(incomingMemos);
           if (savedData.titles) setTitles(savedData.titles);
-          stateRef.current.memos = decrypted;
-          stateRef.current.titles = savedData.titles || DEFAULT_TITLES;
-        } else if (!savedData.isEncrypted) {
-          if (savedData.memos) setMemos(savedData.memos);
-          if (savedData.titles) setTitles(savedData.titles);
-          stateRef.current.memos = savedData.memos || {};
+          stateRef.current.memos = incomingMemos || {};
           stateRef.current.titles = savedData.titles || {};
         }
+
+        if (savedData.settings) setSettings(savedData.settings);
+        if (savedData.theme) setIsDarkMode(savedData.theme === "dark");
+
         if (savedData.layout && apiRef.current) {
-          try { apiRef.current.fromJSON(savedData.layout); } catch (e) { console.error(e); }
+          setTimeout(() => {
+            if (apiRef.current) {
+              (window as any).__isSyncingLayout = true;
+              try {
+                apiRef.current.fromJSON(savedData.layout);
+                if (savedData.titles) {
+                  apiRef.current.panels.forEach(p => {
+                    if (savedData.titles[p.id]) p.api.setTitle(savedData.titles[p.id]);
+                  });
+                }
+              } catch (e) { console.error("Layout restore failed on history exit", e); }
+              finally { (window as any).__isSyncingLayout = false; }
+            }
+          }, 0);
         }
+        
         if (savedData.visualToggles) {
           useVisualToggleStore.setState(savedData.visualToggles);
         }
@@ -1009,21 +1043,45 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     // If snapshot is encrypted, we need session key to view
     const autoLockOn = useAutoLockStore.getState().autoLockEnabled;
     const sessionKeyVal = useAutoLockStore.getState().sessionKey;
-    if (snapshot.isEncrypted && autoLockOn && sessionKeyVal) {
-      const decrypted = decryptMemosText(snapshot.memos, sessionKeyVal);
-      setMemos(decrypted);
-    } else if (snapshot.isEncrypted) {
+    
+    let snapshotMemos = snapshot.memos;
+    let snapshotIsEncrypted = !!snapshot.isEncrypted;
+
+    if (snapshotIsEncrypted && autoLockOn && sessionKeyVal) {
+      try {
+        snapshotMemos = decryptMemosText(snapshot.memos, sessionKeyVal);
+        snapshotIsEncrypted = false;
+      } catch (e) {
+        console.error("Failed to decrypt snapshot", e);
+      }
+    }
+
+    if (snapshotIsEncrypted) {
       toast.error("잠금 해제 후 이력을 볼 수 있습니다.");
       setViewingDate(null);
       return;
-    } else {
-      setMemos(snapshot.memos || {});
     }
 
+    setMemos(snapshotMemos || {});
     if (snapshot.titles) setTitles(snapshot.titles);
+    
     if (snapshot.layout && apiRef.current) {
-      try { apiRef.current.fromJSON(snapshot.layout); } catch (e) { console.error(e); }
+      setTimeout(() => {
+        if (apiRef.current) {
+          (window as any).__isSyncingLayout = true;
+          try {
+            apiRef.current.fromJSON(snapshot.layout);
+            if (snapshot.titles) {
+              apiRef.current.panels.forEach(p => {
+                if (snapshot.titles[p.id]) p.api.setTitle(snapshot.titles[p.id]);
+              });
+            }
+          } catch (e) { console.error("Layout restore failed on snapshot load", e); }
+          finally { (window as any).__isSyncingLayout = false; }
+        }
+      }, 0);
     }
+
     if (snapshot.visualToggles) {
       useVisualToggleStore.setState(snapshot.visualToggles);
     } else {
