@@ -1053,6 +1053,27 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     }
   }, [loadHistoryDate]);
 
+  // Global Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl + S or Cmd + S
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        
+        // Don't allow save in read-only history mode
+        if (useHistoryStore.getState().isReadOnly) {
+          toast.error("읽기 전용 모드에서는 저장할 수 없습니다.");
+          return;
+        }
+        
+        persistState({ silent: false });
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [persistState]);
+
   return {
     memos, titles, isDarkMode, setIsDarkMode, isMounted, settings, updateSettings,
     saveStatus, progressWidth, isEncrypted, isReadOnly, lastUpdated, persistState, removeMemo, resetData,

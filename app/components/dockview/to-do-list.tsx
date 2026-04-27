@@ -2,7 +2,7 @@ import { useContext, useState, memo, KeyboardEvent, useMemo } from "react";
 import { IDockviewPanelProps } from "dockview";
 import { Icon } from "@iconify/react";
 import { MemoContext } from "./context";
-import { Tooltip } from "@/app/components/ui/tooltip";
+import Tooltip from "@mui/material/Tooltip";
 import { toast } from "@/app/components/toast";
 import { useSettings } from "@/app/context/settings-context";
 import { useVisualToggleStore } from "@/app/store/visual-toggle-store";
@@ -118,10 +118,22 @@ const SortableTodoItem = memo(function SortableTodoItem({
           className="flex-1 bg-transparent border-b border-cyan-500 outline-none text-[var(--foreground)]"
         />
       ) : (
-        <Tooltip content={item.text} className="flex-1">
+        <Tooltip
+          title={item.text}
+          arrow
+          placement="top"
+          slotProps={{
+            tooltip: {
+              sx: {
+                whiteSpace: "nowrap",
+                maxWidth: "none",
+              },
+            },
+          }}
+        >
           <span
             onDoubleClick={() => !isReadOnly && handleEditStart(item)}
-            className={`w-full whitespace-nowrap overflow-hidden text-ellipsis transition-all cursor-text select-none ${item.completed ? "line-through opacity-70" : ""}`}
+            className={`flex-1 w-full whitespace-nowrap overflow-hidden text-ellipsis transition-all cursor-text select-none ${item.completed ? "line-through opacity-70" : ""}`}
           >
             {item.text}
           </span>
