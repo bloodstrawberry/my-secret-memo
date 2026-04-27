@@ -44,9 +44,10 @@ function SecurePromptModal({
   const [value, setValue] = useState("");
   const [showPassword, setShowPassword] = useState(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("secure-prompt-show-password") === "true";
+      const saved = localStorage.getItem("secure-prompt-show-password");
+      return saved !== "false"; // Default to true (if null or true)
     }
-    return false;
+    return true;
   });
   const [isClosing, setIsClosing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -168,6 +169,14 @@ function SecurePromptModal({
                 // Filter out non-ASCII characters (e.g., Korean)
                 const filtered = val.replace(/[^\x00-\x7F]/g, "");
                 setValue(filtered);
+              }}
+              onCompositionStart={(e) => {
+                // Interrupt Korean composition by blurring and refocusing
+                const target = e.currentTarget;
+                target.blur();
+                setTimeout(() => {
+                  target.focus();
+                }, 0);
               }}
               onKeyDown={handleKeyDown}
               onFocus={(e) => {
