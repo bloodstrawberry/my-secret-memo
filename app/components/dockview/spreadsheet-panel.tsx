@@ -9,6 +9,7 @@ import { DEFAULT_MEMOS } from "@/app/constants/default";
 
 export function SpreadsheetPanel(props: IDockviewPanelProps) {
   const id = props.api.id;
+  useDockviewResize(props.api);
   const { memos, isReadOnly, updateMemo, isEncrypted } = useContext(MemoContext);
   const { toolbarVisibility, lockedTabs } = useVisualToggleStore();
   const showToolbar = toolbarVisibility[id] !== false;
@@ -113,11 +114,45 @@ export function SpreadsheetPanel(props: IDockviewPanelProps) {
               읽기 전용
             </div>
           )}
-          <div key={remountKey} className={isReadOnly ? "pt-7 w-full h-full" : "w-full h-full"}>
+          <div 
+            key={remountKey} 
+            className={isReadOnly ? "pt-7 w-full h-full" : "w-full h-full"}
+            ref={(el) => {
+              if (el) {
+                // Trigger a resize when the element itself is mounted or changed
+                window.dispatchEvent(new Event('resize'));
+              }
+            }}
+          >
             <Workbook {...settings} />
           </div>
         </>
       )}
     </div>
   );
+}
+
+// Separate hook to handle Dockview events
+function useDockviewResize(api: any) {
+  useEffect(() => {
+    const handleResize = () => {
+      // Use requestAnimationFrame or setTimeout to ensure Dockview has finished its layout
+      requestAnimationFrame(() => {
+        window.dispatchEvent(new Event('resize'));
+      });
+    };
+
+    const d1 = api.onDidDimensionsChange(handleResize);
+    const d2 = api.onDidVisibilityChange((e: { isVisible: boolean }) => {
+      if (e.isVisible) handleResize();
+    });
+
+    // Initial trigger
+    handleResize();
+
+    return () => {
+      d1.dispose();
+      d2.dispose();
+    };
+  }, [api]);
 }
