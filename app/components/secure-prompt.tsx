@@ -20,62 +20,7 @@ interface SecurePromptState {
 // ── Global state for imperative API ──
 let globalSetState: ((state: SecurePromptState) => void) | null = null;
 
-// ── Korean to English (Qwerty) Conversion Logic ──
-const KOR_KEY_MAP: Record<string, string> = {
-  // Consonants (Dubeolsik)
-  'ㄱ': 'r', 'ㄲ': 'R', 'ㄴ': 's', 'ㄷ': 'e', 'ㄸ': 'E', 'ㄹ': 'f', 'ㅁ': 'm', 'ㅂ': 'q', 'ㅃ': 'Q',
-  'ㅅ': 't', 'ㅆ': 'T', 'ㅇ': 'd', 'ㅈ': 'w', 'ㅉ': 'W', 'ㅊ': 'c', 'ㅋ': 'z', 'ㅌ': 'x', 'ㅍ': 'v', 'ㅎ': 'g',
-  // Vowels
-  'ㅏ': 'k', 'ㅐ': 'o', 'ㅑ': 'i', 'ㅒ': 'O', 'ㅓ': 'j', 'ㅔ': 'p', 'ㅕ': 'u', 'ㅖ': 'P', 'ㅗ': 'h', 'ㅛ': 'y',
-  'ㅜ': 'n', 'ㅠ': 'b', 'ㅡ': 'm', 'ㅣ': 'l', 'ㅘ': 'hk', 'ㅙ': 'ho', 'ㅚ': 'hl', 'ㅝ': 'nj', 'ㅞ': 'nl', 'ㅟ': 'nw', 'ㅢ': 'ml'
-};
-
-const CHOSUNG = [
-  'ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'
-];
-const JUNGSUNG = [
-  'ㅏ', 'ㅐ', 'ㅑ', 'ㅒ', 'ㅓ', 'ㅔ', 'ㅕ', 'ㅖ', 'ㅗ', 'ㅘ', 'ㅙ', 'ㅚ', 'ㅛ', 'ㅜ', 'ㅝ', 'ㅞ', 'ㅟ', 'ㅠ', 'ㅡ', 'ㅢ', 'ㅣ'
-];
-const JONGSUNG = [
-  '', 'ㄱ', 'ㄲ', 'ㄳ', 'ㄴ', 'ㄵ', 'ㄶ', 'ㄷ', 'ㄹ', 'ㄺ', 'ㄻ', 'ㄼ', 'ㄽ', 'ㄾ', 'ㄿ', 'ㅀ', 'ㅁ', 'ㅂ', 'ㅄ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'
-];
-
-const JONGSUNG_MAP: Record<string, string> = {
-  'ㄳ': 'rt', 'ㄵ': 'sw', 'ㄶ': 'sg', 'ㄺ': 'fr', 'ㄻ': 'fa', 'ㄼ': 'fq', 'ㄽ': 'ft', 'ㄾ': 'fx', 'ㄿ': 'fv', 'ㅀ': 'fg', 'ㅄ': 'qt'
-};
-
-function convertKoreanToEnglish(text: string): string {
-  let result = "";
-  for (let i = 0; i < text.length; i++) {
-    const code = text.charCodeAt(i);
-
-    // Hangul Syllables (가-힣)
-    if (code >= 0xAC00 && code <= 0xD7A3) {
-      const syllableIndex = code - 0xAC00;
-      const chosungIndex = Math.floor(syllableIndex / (21 * 28));
-      const jungsungIndex = Math.floor((syllableIndex % (21 * 28)) / 28);
-      const jongsungIndex = syllableIndex % 28;
-
-      result += KOR_KEY_MAP[CHOSUNG[chosungIndex]] || "";
-      result += KOR_KEY_MAP[JUNGSUNG[jungsungIndex]] || "";
-      if (jongsungIndex > 0) {
-        const jong = JONGSUNG[jongsungIndex];
-        result += JONGSUNG_MAP[jong] || KOR_KEY_MAP[jong] || "";
-      }
-    }
-    // Single Jamo (ㄱ-ㅣ)
-    else if (code >= 0x3131 && code <= 0x3163) {
-      const jamo = text[i];
-      result += JONGSUNG_MAP[jamo] || KOR_KEY_MAP[jamo] || "";
-    }
-    // ASCII (Standard)
-    else if (code <= 127) {
-      result += text[i];
-    }
-  }
-  return result;
-}
-
+// ── Imperative API ──
 export function showSecurePrompt(
   title: string,
   onConfirm: (value: string) => void,
@@ -203,22 +148,26 @@ function SecurePromptModal({
               type={showPassword ? "text" : "password"}
               placeholder={state.options.placeholder || "암호화 키를 입력하세요..."}
               className="w-full pl-9 pr-10 py-2.5 rounded-xl text-sm transition-all font-mono tracking-widest selection:bg-rose-500/30"
+              autoComplete="off"
               autoCapitalize="off"
               autoCorrect="off"
               spellCheck={false}
+              inputMode="url"
+              lang="en"
               style={{
                 backgroundColor: "rgba(244,63,94,0.05)",
                 border: "1.5px solid rgba(244,63,94,0.3)",
                 outline: "none",
                 color: "var(--foreground)",
                 boxShadow: "inset 0 1px 3px rgba(0,0,0,0.06)",
-              }}
+                imeMode: "disabled",
+              } as React.CSSProperties}
               value={value}
               onChange={(e) => {
                 const val = e.target.value;
-                // Automatically convert Korean characters to English Qwerty keys
-                const converted = convertKoreanToEnglish(val);
-                setValue(converted);
+                // Filter out non-ASCII characters (e.g., Korean)
+                const filtered = val.replace(/[^\x00-\x7F]/g, "");
+                setValue(filtered);
               }}
               onKeyDown={handleKeyDown}
               onFocus={(e) => {
