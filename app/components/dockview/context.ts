@@ -8,7 +8,7 @@ export const MemoContext = createContext<{
   updateMemo: (id: string, val: any, immediate?: boolean) => void;
   updateTitle: (id: string, title: string) => void;
   removeMemo: (id: string) => void;
-  resetData: (type?: "options" | "memos" | "todos" | "all") => void;
+  resetData: (type?: "options" | "memos" | "todos" | "page" | "all") => void;
   toggleEncryption: () => void;
 }>({
   memos: {},
