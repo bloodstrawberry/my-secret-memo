@@ -171,6 +171,10 @@ function SecurePromptModal({
                 setValue(filtered);
               }}
               onCompositionStart={(e) => {
+                // Skip on mobile devices to prevent virtual keyboard flicker/closing issues
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                if (isMobile) return;
+
                 // Interrupt Korean composition by blurring and refocusing
                 const target = e.currentTarget;
                 target.blur();
