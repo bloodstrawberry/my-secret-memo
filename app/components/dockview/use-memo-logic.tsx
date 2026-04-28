@@ -548,15 +548,37 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
       options: "모든 설정을 초기화하시겠습니까?",
       memos: "모든 메모를 초기화하시겠습니까?",
       todos: "모든 To-Do List를 초기화하시겠습니까?",
-      page: "현재 페이지를 초기 상태로 변경하시겠습니까? (이력은 삭제되지 않습니다)",
-      all: (
-        <div className="flex flex-col gap-1 items-center text-center">
-          <span className="text-red-500 font-bold text-base">전체 초기화</span>
-          <span className="text-xs opacity-70">모든 이력과 설정이 삭제됩니다.</span>
-          <span className="text-[10px] bg-red-500/10 text-red-500 px-2 py-0.5 rounded-full font-bold mt-1">현재 데이터가 자동으로 다운로드됩니다</span>
-        </div>
-      )
+      page: "현재 페이지를 초기 상태로 변경하시겠습니까?"
     };
+
+    if (type === "all") {
+      toast.confirm3(
+        "초기화 전 데이터를 백업하시겠습니까?",
+        {
+          btn1: {
+            label: "백업",
+            onClick: async () => {
+              await persistState({ silent: true });
+              await downloadData("full");
+              await performAllReset();
+            }
+          },
+          btn2: {
+            label: "초기화",
+            color: "red",
+            onClick: async () => {
+              await performAllReset();
+            }
+          },
+          btn3: {
+            label: "취소",
+            onClick: () => { }
+          },
+          type: "danger"
+        }
+      );
+      return;
+    }
 
     toast.confirm(messages[type], async () => {
       if (type === "options") {
@@ -568,7 +590,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
 
       if (type === "page") {
         skipPersistRef.current = true;
-        
+
         // 잠금 이력도 없애야 해 (Clear auto-lock store and visual toggle locks)
         const { setSessionKey, setAutoLockEnabled, setKeyError } = useAutoLockStore.getState();
         setSessionKey(null);
@@ -579,11 +601,11 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
         // Reset current state to defaults but KEEP history
         // STORAGE_KEY를 삭제하면 다음 로드 시 기본값이 로드됨
         await memoDB.deleteItem(STORAGE_KEY);
-        
+
         // Clear legacy localStorage as well
         Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
         localStorage.removeItem('visual-toggle-storage');
-        
+
         toast.success("현재 페이지가 초기화되었습니다.");
         setTimeout(() => window.location.reload(), 500);
         return;
@@ -642,31 +664,28 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
         setTimeout(() => window.location.reload(), 500);
         return;
       }
-
-      // Default: all
-      // 전체 초기화 시, 현재 데이터를 다운로드 할 것
-      await persistState({ silent: true });
-      await downloadData("full");
-      
-      skipPersistRef.current = true;
-
-      const { setSessionKey, setAutoLockEnabled, setKeyError } = useAutoLockStore.getState();
-      setSessionKey(null);
-      setAutoLockEnabled(false);
-      setKeyError(false);
-
-      useVisualToggleStore.setState({ tabLocks: {}, lockedTabs: {}, tabSessionPasswords: {} });
-
-      await memoDB.deleteItem(STORAGE_KEY);
-      await memoDB.clearHistory();
-      
-      Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
-      localStorage.removeItem('visual-toggle-storage');
-      
-      toast.success("전체 초기화가 완료되었습니다. 자동 백업이 완료되었습니다.");
-      setTimeout(() => window.location.reload(), 500);
-    }, { type: type === "all" ? "danger" : "warning" });
+    }, { type: "warning" });
   }, [persistState, downloadData]);
+
+  const performAllReset = useCallback(async () => {
+    skipPersistRef.current = true;
+
+    const { setSessionKey, setAutoLockEnabled, setKeyError } = useAutoLockStore.getState();
+    setSessionKey(null);
+    setAutoLockEnabled(false);
+    setKeyError(false);
+
+    useVisualToggleStore.setState({ tabLocks: {}, lockedTabs: {}, tabSessionPasswords: {} });
+
+    await memoDB.deleteItem(STORAGE_KEY);
+    await memoDB.clearHistory();
+
+    Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
+    localStorage.removeItem('visual-toggle-storage');
+
+    toast.success("전체 초기화가 완료되었습니다.");
+    setTimeout(() => window.location.reload(), 500);
+  }, []);
 
   const addMemo = useCallback((type: "memo" | "todo" | "spreadsheet" = "memo") => {
     if (useHistoryStore.getState().isReadOnly) {
@@ -698,11 +717,8 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     toast.success(type === "memo" ? "새로운 메모가 생성되었습니다." : type === "todo" ? "새로운 To-Do List가 생성되었습니다." : "새로운 스프레드시트가 생성되었습니다.");
   }, [persistState, apiRef]);
 
-  const uploadData = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // 1. 현재 상태 저장
+  const performUpload = useCallback(async (file: File) => {
+    // 1. 현재 상태 저장 (업로드 전)
     await persistState({ silent: true });
 
     useLoadingOverlay.getState().show("업로드 중...");
@@ -785,7 +801,39 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
       }
     };
     reader.readAsText(file);
-  }, [apiRef]);
+  }, [apiRef, persistState]);
+
+  const uploadData = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    toast.confirm3(
+      "업로드 전 데이터를 백업하시겠습니까?",
+      {
+        btn1: {
+          label: "백업",
+          onClick: async () => {
+            await downloadData("full");
+            await performUpload(file);
+          }
+        },
+        btn2: {
+          label: "업로드",
+          onClick: async () => {
+            await performUpload(file);
+          }
+        },
+        btn3: {
+          label: "취소",
+          onClick: () => { }
+        },
+        type: "info"
+      }
+    );
+
+    // Clear input value to allow uploading the same file again
+    e.target.value = "";
+  }, [downloadData, performUpload]);
 
   const toggleEncryption = useCallback(() => {
     const { autoLockEnabled, setSessionKey } = useAutoLockStore.getState();
@@ -1043,7 +1091,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
       if (savedData) {
         const autoLockOn = useAutoLockStore.getState().autoLockEnabled;
         const sessionKeyVal = useAutoLockStore.getState().sessionKey;
-        
+
         let incomingMemos = savedData.memos;
         let incomingIsEncrypted = !!savedData.isEncrypted;
 
@@ -1091,7 +1139,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
             }
           }, 0);
         }
-        
+
         if (savedData.visualToggles) {
           useVisualToggleStore.setState(savedData.visualToggles);
         }
@@ -1112,7 +1160,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     // If snapshot is encrypted, we need session key to view
     const autoLockOn = useAutoLockStore.getState().autoLockEnabled;
     const sessionKeyVal = useAutoLockStore.getState().sessionKey;
-    
+
     let snapshotMemos = snapshot.memos;
     let snapshotIsEncrypted = !!snapshot.isEncrypted;
 
@@ -1150,7 +1198,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
       if (snapshot.titles) setTitles(snapshot.titles);
       stateRef.current.memos = snapshotMemos || {};
       stateRef.current.titles = snapshot.titles || {};
-      
+
       if (snapshot.layout && apiRef.current) {
         setTimeout(() => {
           if (apiRef.current) {
@@ -1171,7 +1219,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
 
     setMemos(snapshotMemos || {});
     if (snapshot.titles) setTitles(snapshot.titles);
-    
+
     if (snapshot.layout && apiRef.current) {
       setTimeout(() => {
         if (apiRef.current) {
@@ -1217,7 +1265,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
       toast.error("이력 삭제에 실패했습니다.");
     }
   }, [loadHistoryDate]);
- 
+
   const setSkipSync = useCallback((skip: boolean) => {
     skipPersistRef.current = skip;
   }, []);
@@ -1228,13 +1276,13 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
       // Ctrl + S or Cmd + S
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
-        
+
         // Don't allow save in read-only history mode
         if (useHistoryStore.getState().isReadOnly) {
           toast.error("읽기 전용 모드에서는 저장할 수 없습니다.");
           return;
         }
-        
+
         persistState({ silent: false });
       }
     };

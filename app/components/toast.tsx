@@ -185,7 +185,7 @@ export const toast = {
     }),
   dismiss: (id?: string | number) => sonnerToast.dismiss(id),
   // Custom confirmation toast
-  confirm: (message: React.ReactNode, onConfirm: () => void, options?: { confirmText?: string; cancelText?: string; type?: "info" | "warning" | "danger" }) => {
+  confirm: (message: React.ReactNode, onConfirm: () => void, options?: { confirmText?: string; cancelText?: string; onCancel?: () => void; type?: "info" | "warning" | "danger" }) => {
     sonnerToast.dismiss();
     let isConfirmed = false;
     const handleConfirm = () => {
@@ -210,7 +210,9 @@ export const toast = {
       },
       cancel: {
         label: options?.cancelText || "취소",
-        onClick: () => {},
+        onClick: () => {
+          if (options?.onCancel) options.onCancel();
+        },
       },
       icon: iconMap[type],
     });
@@ -255,6 +257,47 @@ export const toast = {
         />
       ),
       icon: null,
+    });
+  },
+  // Custom 3-button confirmation toast
+  confirm3: (message: string, options: { 
+    btn1: { label: string; onClick: () => void; color?: string };
+    btn2: { label: string; onClick: () => void; color?: string };
+    btn3: { label: string; onClick: () => void; color?: string };
+    type?: "info" | "warning" | "danger";
+  }) => {
+    sonnerToast.dismiss();
+    const isDanger = options.type === "danger";
+    const toastId = sonnerToast(message, {
+      duration: Infinity,
+      className: isDanger ? "!border-red-500/50 !bg-red-500/5" : "",
+      description: (
+        <div className="flex justify-end gap-2 mt-3 w-full min-w-[350px] whitespace-nowrap">
+          <button
+            onClick={() => { options.btn2.onClick(); sonnerToast.dismiss(toastId); }}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95 border border-[var(--border-color)] ${
+              options.btn2.color === "red" ? "text-red-500 border-red-500/30 hover:bg-red-500/10" : "text-cyan-500 hover:bg-cyan-500/10"
+            }`}
+          >
+            {options.btn2.label}
+          </button>
+          <button
+            onClick={() => { options.btn1.onClick(); sonnerToast.dismiss(toastId); }}
+            className={`px-6 py-1.5 rounded-lg text-xs font-bold text-white shadow-lg transition-all active:scale-95 ${
+              options.btn1.color === "red" ? "bg-red-500 shadow-red-500/20 hover:bg-red-600" : "bg-cyan-500 shadow-cyan-500/20 hover:bg-cyan-600"
+            }`}
+          >
+            {options.btn1.label}
+          </button>
+          <button
+            onClick={() => { options.btn3.onClick(); sonnerToast.dismiss(toastId); }}
+            className="px-4 py-1.5 rounded-lg text-xs font-bold border border-[var(--border-color)] hover:bg-slate-500/10 transition-colors text-slate-500"
+          >
+            {options.btn3.label}
+          </button>
+        </div>
+      ),
+      icon: isDanger ? <Icon icon="material-symbols:warning-outline" className="w-5 h-5 text-red-500" /> : <Icon icon="material-symbols:help-outline" className="w-5 h-5 text-cyan-500" />,
     });
   },
 };
