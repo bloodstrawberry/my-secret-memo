@@ -215,152 +215,162 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
 
   // Initial load & Cross-tab sync
   useEffect(() => {
-    const subscription = memoDB.observeItem<any>(STORAGE_KEY).subscribe({
-      next: (savedData) => {
-        if (!savedData) {
-          if (!isMountedRef.current) {
-            const legacyMemos = localStorage.getItem(STORAGE_KEYS.MEMOS);
-            const legacyTitles = localStorage.getItem(STORAGE_KEYS.TITLES);
-            const legacySettings = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-            const legacyTheme = localStorage.getItem(STORAGE_KEYS.THEME);
+    // Wait for TabGuard to detect potential duplication before starting sync
+    const initTimer = setTimeout(() => {
+      if ((window as any).__isDuplicateTab) {
+        console.warn("TabGuard: Duplicate tab detected. Skipping data synchronization.");
+        return;
+      }
 
-            const initialMemos = legacyMemos ? JSON.parse(legacyMemos) : DEFAULT_MEMOS;
-            const initialTitles = legacyTitles ? JSON.parse(legacyTitles) : DEFAULT_TITLES;
-            const initialSettings = legacySettings ? JSON.parse(legacySettings) : DEFAULT_SETTINGS;
-            const initialIsDark = legacyTheme === "dark";
+      const subscription = memoDB.observeItem<any>(STORAGE_KEY).subscribe({
+        next: (savedData) => {
+          if (!savedData) {
+            if (!isMountedRef.current) {
+              const legacyMemos = localStorage.getItem(STORAGE_KEYS.MEMOS);
+              const legacyTitles = localStorage.getItem(STORAGE_KEYS.TITLES);
+              const legacySettings = localStorage.getItem(STORAGE_KEYS.SETTINGS);
+              const legacyTheme = localStorage.getItem(STORAGE_KEYS.THEME);
 
-            setMemos(initialMemos);
-            setTitles(initialTitles);
-            setSettings(initialSettings);
-            setIsDarkMode(initialIsDark);
+              const initialMemos = legacyMemos ? JSON.parse(legacyMemos) : DEFAULT_MEMOS;
+              const initialTitles = legacyTitles ? JSON.parse(legacyTitles) : DEFAULT_TITLES;
+              const initialSettings = legacySettings ? JSON.parse(legacySettings) : DEFAULT_SETTINGS;
+              const initialIsDark = legacyTheme === "dark";
 
-            stateRef.current = {
-              memos: initialMemos,
-              titles: initialTitles,
-              settings: initialSettings,
-              isDarkMode: initialIsDark,
-              lastUpdated: null
-            };
-            setIsMounted(true);
+              setMemos(initialMemos);
+              setTitles(initialTitles);
+              setSettings(initialSettings);
+              setIsDarkMode(initialIsDark);
+
+              stateRef.current = {
+                memos: initialMemos,
+                titles: initialTitles,
+                settings: initialSettings,
+                isDarkMode: initialIsDark,
+                lastUpdated: null
+              };
+              setIsMounted(true);
+            }
+            return;
           }
-          return;
-        }
 
-        // If we are ignoring updates (e.g. during encryption/decryption)
-        if (skipPersistRef.current) return;
+          // If we are ignoring updates (e.g. during encryption/decryption)
+          if (skipPersistRef.current) return;
 
-        // Prevent redundant updates triggered by our own saves
-        if (isMountedRef.current && savedData.lastUpdated && savedData.lastUpdated === stateRef.current.lastUpdated) {
-          return;
-        }
-
-        // Apply external changes
-        const { autoLockEnabled, sessionKey } = useAutoLockStore.getState();
-        let incomingMemos = savedData.memos;
-        let incomingIsEncrypted = savedData.isEncrypted || (autoLockEnabled && savedData.autoLock);
-
-        if (incomingIsEncrypted && sessionKey) {
-          try {
-            incomingMemos = decryptMemosText(savedData.memos, sessionKey);
-            incomingIsEncrypted = false;
-          } catch (e) {
-            console.error("Failed to decrypt incoming sync data", e);
+          // Prevent redundant updates triggered by our own saves
+          if (isMountedRef.current && savedData.lastUpdated && savedData.lastUpdated === stateRef.current.lastUpdated) {
+            return;
           }
-        }
 
-        if (incomingIsEncrypted) {
-          setIsEncrypted(true);
-          isEncryptedRef.current = true;
-          setMemos(DEFAULT_MEMOS);
-          setTitles(DEFAULT_TITLES);
-          stateRef.current = {
-            memos: DEFAULT_MEMOS,
-            titles: DEFAULT_TITLES,
-            settings: savedData.settings || DEFAULT_SETTINGS,
-            isDarkMode: savedData.theme === "dark",
-            lastUpdated: savedData.lastUpdated
-          };
-        } else {
-          setIsEncrypted(false);
-          isEncryptedRef.current = false;
-          if (incomingMemos) setMemos(incomingMemos);
-          if (savedData.titles) setTitles(savedData.titles);
-          stateRef.current = {
-            memos: incomingMemos || {},
-            titles: savedData.titles || {},
-            settings: savedData.settings || DEFAULT_SETTINGS,
-            isDarkMode: savedData.theme === "dark",
-            lastUpdated: savedData.lastUpdated
-          };
-        }
+          // Apply external changes
+          const { autoLockEnabled, sessionKey } = useAutoLockStore.getState();
+          let incomingMemos = savedData.memos;
+          let incomingIsEncrypted = savedData.isEncrypted || (autoLockEnabled && savedData.autoLock);
 
-        if (savedData.settings) setSettings(savedData.settings);
-        if (savedData.theme) {
-          const dark = savedData.theme === "dark";
-          setIsDarkMode(dark);
-          stateRef.current.isDarkMode = dark;
-          if (dark) document.documentElement.classList.add("dark");
-        }
-        if (savedData.lastUpdated) {
-          setLastUpdated(savedData.lastUpdated);
-        }
-
-        if (savedData.visualToggles) {
-          if (savedData.visualToggles.toolbarVisibility !== undefined) {
-            useVisualToggleStore.setState({
-              toolbarVisibility: savedData.visualToggles.toolbarVisibility,
-              tabLocks: savedData.visualToggles.tabLocks || {},
-              lockedTabs: savedData.visualToggles.lockedTabs || {}
-            });
-          } else {
-            // Legacy format
-            useVisualToggleStore.setState({ toolbarVisibility: savedData.visualToggles });
-          }
-        }
-        if (savedData.lastUpdated) {
-          setLastUpdated(savedData.lastUpdated);
-        }
-
-        // Sync Layout & Titles
-        if (apiRef.current && !isEncryptedRef.current) {
-          // Layout
-          if (savedData.layout) {
+          if (incomingIsEncrypted && sessionKey) {
             try {
-              const currentLayoutStr = JSON.stringify(apiRef.current.toJSON());
-              const newLayoutStr = JSON.stringify(savedData.layout);
-              if (currentLayoutStr !== newLayoutStr) {
-                // Set flag to prevent infinite layout sync loop
-                (window as any).__skipNextLayoutSave = true;
-                setTimeout(() => {
-                  if (apiRef.current) {
-                    (window as any).__isSyncingLayout = true;
-                    try {
-                      apiRef.current.fromJSON(savedData.layout);
-                    } finally {
-                      (window as any).__isSyncingLayout = false;
-                    }
-                  }
-                }, 0);
-              }
+              incomingMemos = decryptMemosText(savedData.memos, sessionKey);
+              incomingIsEncrypted = false;
             } catch (e) {
-              console.error("Failed to sync layout", e);
+              console.error("Failed to decrypt incoming sync data", e);
             }
           }
-          // Titles
-          const titlesMap = savedData.titles || {};
-          apiRef.current.panels.forEach(panel => {
-            if (titlesMap[panel.id] && panel.api.title !== titlesMap[panel.id]) {
-              panel.api.setTitle(titlesMap[panel.id]);
+
+          if (incomingIsEncrypted) {
+            setIsEncrypted(true);
+            isEncryptedRef.current = true;
+            setMemos(DEFAULT_MEMOS);
+            setTitles(DEFAULT_TITLES);
+            stateRef.current = {
+              memos: DEFAULT_MEMOS,
+              titles: DEFAULT_TITLES,
+              settings: savedData.settings || DEFAULT_SETTINGS,
+              isDarkMode: savedData.theme === "dark",
+              lastUpdated: savedData.lastUpdated
+            };
+          } else {
+            setIsEncrypted(false);
+            isEncryptedRef.current = false;
+            if (incomingMemos) setMemos(incomingMemos);
+            if (savedData.titles) setTitles(savedData.titles);
+            stateRef.current = {
+              memos: incomingMemos || {},
+              titles: savedData.titles || {},
+              settings: savedData.settings || DEFAULT_SETTINGS,
+              isDarkMode: savedData.theme === "dark",
+              lastUpdated: savedData.lastUpdated
+            };
+          }
+
+          if (savedData.settings) setSettings(savedData.settings);
+          if (savedData.theme) {
+            const dark = savedData.theme === "dark";
+            setIsDarkMode(dark);
+            stateRef.current.isDarkMode = dark;
+            if (dark) document.documentElement.classList.add("dark");
+          }
+          if (savedData.lastUpdated) {
+            setLastUpdated(savedData.lastUpdated);
+          }
+
+          if (savedData.visualToggles) {
+            if (savedData.visualToggles.toolbarVisibility !== undefined) {
+              useVisualToggleStore.setState({
+                toolbarVisibility: savedData.visualToggles.toolbarVisibility,
+                tabLocks: savedData.visualToggles.tabLocks || {},
+                lockedTabs: savedData.visualToggles.lockedTabs || {}
+              });
+            } else {
+              // Legacy format
+              useVisualToggleStore.setState({ toolbarVisibility: savedData.visualToggles });
             }
-          });
-        }
+          }
+          if (savedData.lastUpdated) {
+            setLastUpdated(savedData.lastUpdated);
+          }
 
-        setIsMounted(true);
-      },
-      error: (err) => console.error("observeItem error:", err)
-    });
+          // Sync Layout & Titles
+          if (apiRef.current && !isEncryptedRef.current) {
+            // Layout
+            if (savedData.layout) {
+              try {
+                const currentLayoutStr = JSON.stringify(apiRef.current.toJSON());
+                const newLayoutStr = JSON.stringify(savedData.layout);
+                if (currentLayoutStr !== newLayoutStr) {
+                  // Set flag to prevent infinite layout sync loop
+                  (window as any).__skipNextLayoutSave = true;
+                  setTimeout(() => {
+                    if (apiRef.current) {
+                      (window as any).__isSyncingLayout = true;
+                      try {
+                        apiRef.current.fromJSON(savedData.layout);
+                      } finally {
+                        (window as any).__isSyncingLayout = false;
+                      }
+                    }
+                  }, 0);
+                }
+              } catch (e) {
+                console.error("Failed to sync layout", e);
+              }
+            }
+            // Titles
+            const titlesMap = savedData.titles || {};
+            apiRef.current.panels.forEach(panel => {
+              if (titlesMap[panel.id] && panel.api.title !== titlesMap[panel.id]) {
+                panel.api.setTitle(titlesMap[panel.id]);
+              }
+            });
+          }
 
-    return () => subscription.unsubscribe();
+          setIsMounted(true);
+        },
+        error: (err) => console.error("observeItem error:", err)
+      });
+
+      return () => subscription.unsubscribe();
+    }, 150);
+
+    return () => clearTimeout(initTimer);
   }, []);
 
   // Update Theme DOM

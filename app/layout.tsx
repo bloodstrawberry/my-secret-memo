@@ -52,6 +52,7 @@ export const metadata: Metadata = {
 
 import { Toaster } from "@/app/components/toast";
 import { SecurePromptProvider } from "@/app/components/secure-prompt";
+import { TabGuard } from "@/app/components/tab-guard";
 
 export default function RootLayout({
   children,
@@ -71,6 +72,7 @@ export default function RootLayout({
         {children}
         <Toaster />
         <SecurePromptProvider />
+        <TabGuard />
       </body>
     </html>
   );
