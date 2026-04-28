@@ -486,150 +486,6 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     persistState({ titles: nextTitles, memos: nextMemos });
   }, [persistState]);
 
-  const resetData = useCallback((type: "options" | "memos" | "todos" | "page" | "all" = "all") => {
-    const messages: Record<string, React.ReactNode> = {
-      options: "모든 설정을 초기화하시겠습니까?",
-      memos: "모든 메모를 초기화하시겠습니까?",
-      todos: "모든 To-Do List를 초기화하시겠습니까?",
-      page: "현재 페이지의 내용을 초기화하시겠습니까?",
-      all: (
-        <span>
-          <span className="text-red-500 font-bold">모든 데이터의 이력</span>과 설정을 초기화하시겠습니까?
-        </span>
-      )
-    };
-
-    toast.confirm(messages[type], async () => {
-      if (type === "options") {
-        setSettings(DEFAULT_SETTINGS);
-        persistState({ settings: DEFAULT_SETTINGS });
-        toast.success("설정이 초기화되었습니다.");
-        return;
-      }
-
-      if (type === "page") {
-        skipPersistRef.current = true;
-        // Clear only live state, KEEP history
-        await memoDB.deleteItem(STORAGE_KEY);
-        // Clear legacy localStorage as well
-        localStorage.removeItem(STORAGE_KEYS.MEMOS);
-        localStorage.removeItem(STORAGE_KEYS.TITLES);
-        localStorage.removeItem(STORAGE_KEYS.LAYOUT);
-        localStorage.removeItem(STORAGE_KEYS.SETTINGS);
-        localStorage.removeItem('visual-toggle-storage');
-        window.location.reload();
-        return;
-      }
-
-      if (type === "memos") {
-        const nextMemos = { ...stateRef.current.memos };
-        const nextTitles = { ...stateRef.current.titles };
-        Object.keys(nextMemos).forEach(id => {
-          if (id.startsWith("memo")) delete nextMemos[id];
-        });
-        Object.keys(nextTitles).forEach(id => {
-          if (id.startsWith("memo")) delete nextTitles[id];
-        });
-
-        // Pick only memo defaults
-        Object.keys(DEFAULT_MEMOS).forEach(key => {
-          if (key.startsWith("memo")) nextMemos[key] = DEFAULT_MEMOS[key];
-        });
-        Object.keys(DEFAULT_TITLES).forEach(key => {
-          if (key.startsWith("memo")) nextTitles[key] = DEFAULT_TITLES[key];
-        });
-
-        setMemos(nextMemos);
-        setTitles(nextTitles);
-        persistState({ memos: nextMemos, titles: nextTitles });
-        localStorage.removeItem(STORAGE_KEYS.LAYOUT);
-        toast.success("메모장이 초기화되었습니다.");
-        skipPersistRef.current = true;
-        setTimeout(() => window.location.reload(), 500);
-        return;
-      }
-
-      if (type === "todos") {
-        const nextMemos = { ...stateRef.current.memos };
-        const nextTitles = { ...stateRef.current.titles };
-        Object.keys(nextMemos).forEach(id => {
-          if (id.startsWith("todo")) delete nextMemos[id];
-        });
-        Object.keys(nextTitles).forEach(id => {
-          if (id.startsWith("todo")) delete nextTitles[id];
-        });
-
-        // Pick only todo defaults
-        Object.keys(DEFAULT_MEMOS).forEach(key => {
-          if (key.startsWith("todo")) nextMemos[key] = DEFAULT_MEMOS[key];
-        });
-        Object.keys(DEFAULT_TITLES).forEach(key => {
-          if (key.startsWith("todo")) nextTitles[key] = DEFAULT_TITLES[key];
-        });
-
-        setMemos(nextMemos);
-        setTitles(nextTitles);
-        persistState({ memos: nextMemos, titles: nextTitles });
-        localStorage.removeItem(STORAGE_KEYS.LAYOUT);
-        toast.success("To-Do List가 초기화되었습니다.");
-        skipPersistRef.current = true;
-        setTimeout(() => window.location.reload(), 500);
-        return;
-      }
-
-      // Default: all
-      skipPersistRef.current = true;
-
-      // Clear auto-lock store states after confirmation
-      const { setSessionKey, setAutoLockEnabled, setKeyError } = useAutoLockStore.getState();
-      setSessionKey(null);
-      setAutoLockEnabled(false);
-      setKeyError(false);
-
-      // Clear visual toggle locks
-      useVisualToggleStore.setState({ tabLocks: {}, lockedTabs: {}, tabSessionPasswords: {} });
-
-      await memoDB.deleteItem(STORAGE_KEY);
-      await memoDB.clearHistory();
-      localStorage.removeItem(STORAGE_KEYS.MEMOS);
-      localStorage.removeItem(STORAGE_KEYS.TITLES);
-      localStorage.removeItem(STORAGE_KEYS.LAYOUT);
-      localStorage.removeItem(STORAGE_KEYS.SETTINGS);
-      localStorage.removeItem('visual-toggle-storage');
-      window.location.reload();
-    });
-  }, [persistState]);
-
-  const addMemo = useCallback((type: "memo" | "todo" | "spreadsheet" = "memo") => {
-    if (useHistoryStore.getState().isReadOnly) {
-      toast.error("읽기 전용 모드에서는 추가할 수 없습니다.");
-      return;
-    }
-    if (!apiRef.current) return;
-    const id = `${type}-${Date.now()}`;
-    const component = type === "memo" ? "editor" : type === "todo" ? "todoList" : "spreadsheet";
-    const title = type === "memo" ? "New Memo" : type === "todo" ? "New To-Do List" : "New Spreadsheets";
-
-    apiRef.current.addPanel({
-      id: id,
-      component: component,
-      title: title,
-      tabComponent: "default",
-    });
-
-    const initialContent = type === "memo"
-      ? { type: "doc", content: [{ type: "paragraph" }] }
-      : type === "todo" ? { items: [] }
-        : [{ name: "Sheet1", celldata: [], status: 1 }];
-
-    const nextMemos = { ...stateRef.current.memos, [id]: initialContent };
-    const nextTitles = { ...stateRef.current.titles, [id]: title };
-    setMemos(nextMemos);
-    setTitles(nextTitles);
-    persistState({ memos: nextMemos, titles: nextTitles });
-    toast.success(type === "memo" ? "새로운 메모가 생성되었습니다." : type === "todo" ? "새로운 To-Do List가 생성되었습니다." : "새로운 스프레드시트가 생성되었습니다.");
-  }, [persistState, apiRef]);
-
   const downloadData = useCallback(async (mode: "current" | "full" = "current") => {
     let data: any;
     const { viewingDate, isReadOnly } = useHistoryStore.getState();
@@ -687,20 +543,167 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     toast.success(msg);
   }, []);
 
+  const resetData = useCallback((type: "options" | "memos" | "todos" | "page" | "all" = "all") => {
+    const messages: Record<string, React.ReactNode> = {
+      options: "모든 설정을 초기화하시겠습니까?",
+      memos: "모든 메모를 초기화하시겠습니까?",
+      todos: "모든 To-Do List를 초기화하시겠습니까?",
+      page: "현재 페이지를 초기 상태로 변경하시겠습니까? (이력은 삭제되지 않습니다)",
+      all: (
+        <div className="flex flex-col gap-1 items-center text-center">
+          <span className="text-red-500 font-bold text-base">전체 초기화</span>
+          <span className="text-xs opacity-70">모든 이력과 설정이 삭제됩니다.</span>
+          <span className="text-[10px] bg-red-500/10 text-red-500 px-2 py-0.5 rounded-full font-bold mt-1">현재 데이터가 자동으로 다운로드됩니다</span>
+        </div>
+      )
+    };
+
+    toast.confirm(messages[type], async () => {
+      if (type === "options") {
+        setSettings(DEFAULT_SETTINGS);
+        persistState({ settings: DEFAULT_SETTINGS });
+        toast.success("설정이 초기화되었습니다.");
+        return;
+      }
+
+      if (type === "page") {
+        skipPersistRef.current = true;
+        
+        // 잠금 이력도 없애야 해 (Clear auto-lock store and visual toggle locks)
+        const { setSessionKey, setAutoLockEnabled, setKeyError } = useAutoLockStore.getState();
+        setSessionKey(null);
+        setAutoLockEnabled(false);
+        setKeyError(false);
+        useVisualToggleStore.setState({ tabLocks: {}, lockedTabs: {}, tabSessionPasswords: {} });
+
+        // Reset current state to defaults but KEEP history
+        // STORAGE_KEY를 삭제하면 다음 로드 시 기본값이 로드됨
+        await memoDB.deleteItem(STORAGE_KEY);
+        
+        // Clear legacy localStorage as well
+        Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
+        localStorage.removeItem('visual-toggle-storage');
+        
+        toast.success("현재 페이지가 초기화되었습니다.");
+        setTimeout(() => window.location.reload(), 500);
+        return;
+      }
+
+      if (type === "memos") {
+        const nextMemos = { ...stateRef.current.memos };
+        const nextTitles = { ...stateRef.current.titles };
+        Object.keys(nextMemos).forEach(id => {
+          if (id.startsWith("memo")) delete nextMemos[id];
+        });
+        Object.keys(nextTitles).forEach(id => {
+          if (id.startsWith("memo")) delete nextTitles[id];
+        });
+
+        Object.keys(DEFAULT_MEMOS).forEach(key => {
+          if (key.startsWith("memo")) nextMemos[key] = DEFAULT_MEMOS[key];
+        });
+        Object.keys(DEFAULT_TITLES).forEach(key => {
+          if (key.startsWith("memo")) nextTitles[key] = DEFAULT_TITLES[key];
+        });
+
+        setMemos(nextMemos);
+        setTitles(nextTitles);
+        persistState({ memos: nextMemos, titles: nextTitles });
+        localStorage.removeItem(STORAGE_KEYS.LAYOUT);
+        toast.success("메모장이 초기화되었습니다.");
+        skipPersistRef.current = true;
+        setTimeout(() => window.location.reload(), 500);
+        return;
+      }
+
+      if (type === "todos") {
+        const nextMemos = { ...stateRef.current.memos };
+        const nextTitles = { ...stateRef.current.titles };
+        Object.keys(nextMemos).forEach(id => {
+          if (id.startsWith("todo")) delete nextMemos[id];
+        });
+        Object.keys(nextTitles).forEach(id => {
+          if (id.startsWith("todo")) delete nextTitles[id];
+        });
+
+        Object.keys(DEFAULT_MEMOS).forEach(key => {
+          if (key.startsWith("todo")) nextMemos[key] = DEFAULT_MEMOS[key];
+        });
+        Object.keys(DEFAULT_TITLES).forEach(key => {
+          if (key.startsWith("todo")) nextTitles[key] = DEFAULT_TITLES[key];
+        });
+
+        setMemos(nextMemos);
+        setTitles(nextTitles);
+        persistState({ memos: nextMemos, titles: nextTitles });
+        localStorage.removeItem(STORAGE_KEYS.LAYOUT);
+        toast.success("To-Do List가 초기화되었습니다.");
+        skipPersistRef.current = true;
+        setTimeout(() => window.location.reload(), 500);
+        return;
+      }
+
+      // Default: all
+      // 전체 초기화 시, 현재 데이터를 다운로드 할 것
+      await persistState({ silent: true });
+      await downloadData("full");
+      
+      skipPersistRef.current = true;
+
+      const { setSessionKey, setAutoLockEnabled, setKeyError } = useAutoLockStore.getState();
+      setSessionKey(null);
+      setAutoLockEnabled(false);
+      setKeyError(false);
+
+      useVisualToggleStore.setState({ tabLocks: {}, lockedTabs: {}, tabSessionPasswords: {} });
+
+      await memoDB.deleteItem(STORAGE_KEY);
+      await memoDB.clearHistory();
+      
+      Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
+      localStorage.removeItem('visual-toggle-storage');
+      
+      toast.success("전체 초기화가 완료되었습니다. 자동 백업이 완료되었습니다.");
+      setTimeout(() => window.location.reload(), 500);
+    }, { type: type === "all" ? "danger" : "warning" });
+  }, [persistState, downloadData]);
+
+  const addMemo = useCallback((type: "memo" | "todo" | "spreadsheet" = "memo") => {
+    if (useHistoryStore.getState().isReadOnly) {
+      toast.error("읽기 전용 모드에서는 추가할 수 없습니다.");
+      return;
+    }
+    if (!apiRef.current) return;
+    const id = `${type}-${Date.now()}`;
+    const component = type === "memo" ? "editor" : type === "todo" ? "todoList" : "spreadsheet";
+    const title = type === "memo" ? "New Memo" : type === "todo" ? "New To-Do List" : "New Spreadsheets";
+
+    apiRef.current.addPanel({
+      id: id,
+      component: component,
+      title: title,
+      tabComponent: "default",
+    });
+
+    const initialContent = type === "memo"
+      ? { type: "doc", content: [{ type: "paragraph" }] }
+      : type === "todo" ? { items: [] }
+        : [{ name: "Sheet1", celldata: [], status: 1 }];
+
+    const nextMemos = { ...stateRef.current.memos, [id]: initialContent };
+    const nextTitles = { ...stateRef.current.titles, [id]: title };
+    setMemos(nextMemos);
+    setTitles(nextTitles);
+    persistState({ memos: nextMemos, titles: nextTitles });
+    toast.success(type === "memo" ? "새로운 메모가 생성되었습니다." : type === "todo" ? "새로운 To-Do List가 생성되었습니다." : "새로운 스프레드시트가 생성되었습니다.");
+  }, [persistState, apiRef]);
+
   const uploadData = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // 1. 안내 메시지 표시 (1초)
-    const toastId = toast.info("현재 데이터를 저장하고 업로드 합니다");
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    toast.dismiss(toastId);
-
-    // 2. 현재 상태 저장
+    // 1. 현재 상태 저장
     await persistState({ silent: true });
-
-    // 3. Backup: 전체 데이터(이력 포함) 다운로드
-    await downloadData("full");
 
     useLoadingOverlay.getState().show("업로드 중...");
 
@@ -786,8 +789,13 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
 
   const toggleEncryption = useCallback(() => {
     const { autoLockEnabled, setSessionKey } = useAutoLockStore.getState();
+    const { isReadOnly, viewingDate } = useHistoryStore.getState();
 
     if (!isEncrypted) {
+      if (isReadOnly) {
+        toast.info("과거 이력은 다시 잠글 수 없습니다.");
+        return;
+      }
       if (autoLockEnabled) {
         toast.info("AUTO LOCK을 해제해주세요");
         return;
@@ -868,10 +876,52 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
         }
       }, { placeholder: "암호화 키 입력" });
     } else {
-      showSecurePrompt("복호화 key를 입력하세요", async (key) => {
+      showSecurePrompt(isReadOnly ? "이력 복호화 key를 입력하세요" : "복호화 key를 입력하세요", async (key) => {
         if (!key) return;
         useLoadingOverlay.getState().show("복호화 중...");
         try {
+          if (isReadOnly && viewingDate) {
+            // Decrypt history without persisting to DB
+            const snapshot = await memoDB.getHistoryItem<any>(viewingDate);
+            if (!snapshot || !snapshot.memos) {
+              useLoadingOverlay.getState().hide();
+              return;
+            }
+
+            try {
+              const decryptedMemos = decryptMemosText(snapshot.memos, key);
+              setMemos(decryptedMemos);
+              if (snapshot.titles) setTitles(snapshot.titles);
+              stateRef.current.memos = decryptedMemos;
+              stateRef.current.titles = snapshot.titles || DEFAULT_TITLES;
+
+              if (snapshot.layout && apiRef.current) {
+                setTimeout(() => {
+                  try {
+                    (window as any).__isSyncingLayout = true;
+                    apiRef.current?.fromJSON(snapshot.layout);
+                    if (snapshot.titles) {
+                      apiRef.current?.panels.forEach(p => {
+                        if (snapshot.titles[p.id]) p.api.setTitle(snapshot.titles[p.id]);
+                      });
+                    }
+                  } catch (e) { console.error("Layout restore failed during history unlock", e); }
+                  finally { (window as any).__isSyncingLayout = false; }
+                }, 0);
+              }
+
+              setIsEncrypted(false);
+              isEncryptedRef.current = false;
+              useAutoLockStore.getState().setKeyError(false);
+              toast.success("이력이 복호화되었습니다.");
+            } catch (e) {
+              useAutoLockStore.getState().setKeyError(true);
+              toast.error("잘못된 비밀번호입니다.");
+            }
+            useLoadingOverlay.getState().hide();
+            return;
+          }
+
           debouncedPersist.cancel(); // Defensive code: cancel pending saves
           skipPersistRef.current = true; // Block early
           const data = await memoDB.getItem<any>(STORAGE_KEY);
@@ -978,11 +1028,10 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
 
   // Load a historical date snapshot
   const loadHistoryDate = useCallback(async (dateKey: string | null) => {
-    const { setViewingDate } = useHistoryStore.getState();
-    const { autoLockEnabled, sessionKey } = useAutoLockStore.getState();
+    const { setViewingDate, isReadOnly } = useHistoryStore.getState();
 
-    // Block access if app is locked (auto-lock ON but no session key)
-    if (autoLockEnabled && !sessionKey && dateKey !== null) {
+    // Block access if app is locked (Only if NOT already in history mode)
+    if (isEncrypted && !isReadOnly && dateKey !== null) {
       toast.error("잠금을 해제해야 이력을 볼 수 있습니다.");
       return;
     }
@@ -1067,7 +1116,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     let snapshotMemos = snapshot.memos;
     let snapshotIsEncrypted = !!snapshot.isEncrypted;
 
-    if (snapshotIsEncrypted && autoLockOn && sessionKeyVal) {
+    if (snapshotIsEncrypted && sessionKeyVal) {
       try {
         snapshotMemos = decryptMemosText(snapshot.memos, sessionKeyVal);
         snapshotIsEncrypted = false;
@@ -1077,9 +1126,47 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
     }
 
     if (snapshotIsEncrypted) {
-      toast.error("잠금 해제 후 이력을 볼 수 있습니다.");
-      setViewingDate(null);
-      return;
+      setIsEncrypted(true);
+      isEncryptedRef.current = true;
+      setMemos(DEFAULT_MEMOS);
+      setTitles(DEFAULT_TITLES);
+      stateRef.current.memos = DEFAULT_MEMOS;
+      stateRef.current.titles = DEFAULT_TITLES;
+
+      if (apiRef.current) {
+        try {
+          (window as any).__isSyncingLayout = true;
+          apiRef.current.clear();
+          apiRef.current.addPanel({ id: "memo1", component: "editor", title: DEFAULT_TITLES["memo1"], tabComponent: "default" });
+          apiRef.current.addPanel({ id: "todo1", component: "todoList", title: DEFAULT_TITLES["todo1"], tabComponent: "default", position: { referencePanel: "memo1", direction: "right" } });
+          apiRef.current.addPanel({ id: "spreadsheet1", component: "spreadsheet", title: DEFAULT_TITLES["spreadsheet1"], tabComponent: "default", position: { referencePanel: "todo1", direction: "below" } });
+        } catch (e) { console.error("Layout reset failed during history load", e); }
+        finally { (window as any).__isSyncingLayout = false; }
+      }
+    } else {
+      setIsEncrypted(false);
+      isEncryptedRef.current = false;
+      setMemos(snapshotMemos || {});
+      if (snapshot.titles) setTitles(snapshot.titles);
+      stateRef.current.memos = snapshotMemos || {};
+      stateRef.current.titles = snapshot.titles || {};
+      
+      if (snapshot.layout && apiRef.current) {
+        setTimeout(() => {
+          if (apiRef.current) {
+            (window as any).__isSyncingLayout = true;
+            try {
+              apiRef.current.fromJSON(snapshot.layout);
+              if (snapshot.titles) {
+                apiRef.current.panels.forEach(p => {
+                  if (snapshot.titles[p.id]) p.api.setTitle(snapshot.titles[p.id]);
+                });
+              }
+            } catch (e) { console.error("Layout restore failed on snapshot load", e); }
+            finally { (window as any).__isSyncingLayout = false; }
+          }
+        }, 0);
+      }
     }
 
     setMemos(snapshotMemos || {});
@@ -1114,7 +1201,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
       });
     }
     toast.success(`${dateKey} 이력을 불러왔습니다. (읽기 전용)`);
-  }, [apiRef]);
+  }, [apiRef, isEncrypted]);
 
   // Delete a historical date snapshot
   const deleteHistoryDate = useCallback(async (dateKey: string) => {

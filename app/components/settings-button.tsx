@@ -14,6 +14,7 @@ import { encryptMemosText, hashPassword } from "@/app/components/dockview/utils"
 import { useLoadingOverlay } from "@/app/store/loading-overlay-store";
 import { useHistoryStore } from "@/app/store/history-store";
 import { useEffect, useRef } from "react";
+import Tooltip from "@mui/material/Tooltip";
 
 const FONT_OPTIONS = [
   { name: "Pretendard", value: "'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif" },
@@ -355,8 +356,9 @@ function AutoLockToggle() {
 }
 
 function MemoResetButton() {
-  const { resetData } = useMemoStore();
+  const { resetData, isEncrypted } = useMemoStore();
   const { isReadOnly } = useHistoryStore();
+  const { autoLockEnabled } = useAutoLockStore();
   const [isExpanded, setIsExpanded] = useState(false);
 
   if (!isExpanded) {
@@ -411,13 +413,52 @@ function MemoResetButton() {
         <span className="whitespace-nowrap">To-Do List 초기화</span>
       </button>
 
-      <button
-        onClick={() => { resetData("page"); setIsExpanded(false); }}
-        className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-orange-500/10 hover:bg-orange-500/20 text-orange-500 transition-all text-xs font-bold text-left w-full group"
+      <Tooltip 
+        title={isEncrypted 
+          ? "잠금 상태에서는 현재 상태를 초기화할 수 없습니다. 먼저 잠금을 해제해주세요." 
+          : autoLockEnabled 
+            ? "AUTO LOCK이 활성화된 상태에서는 현재 상태를 초기화할 수 없습니다. AUTO LOCK을 먼저 해제해주세요." 
+            : ""}
+        arrow
+        placement="left"
+        disableHoverListener={!isEncrypted && !autoLockEnabled}
+        slotProps={{
+          tooltip: {
+            sx: {
+              bgcolor: 'rgba(15, 23, 42, 0.9)',
+              backdropFilter: 'blur(8px)',
+              border: '1px solid var(--border-color)',
+              color: '#fff',
+              fontSize: '11px',
+              fontWeight: 'bold',
+              padding: '8px 12px',
+              borderRadius: '12px',
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+              whiteSpace: "nowrap",
+              maxWidth: "none",
+              '& .MuiTooltip-arrow': {
+                color: 'rgba(15, 23, 42, 0.9)',
+                '&::before': {
+                  border: '1px solid var(--border-color)',
+                }
+              }
+            }
+          }
+        }}
       >
-        <Icon icon="material-symbols:restart-alt-rounded" className="w-4 h-4 opacity-80 group-hover:opacity-100 transition-opacity" />
-        <span className="whitespace-nowrap">현재 상태 초기화</span>
-      </button>
+        <button
+          disabled={isEncrypted || autoLockEnabled}
+          onClick={() => { resetData("page"); setIsExpanded(false); }}
+          className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all text-xs font-bold text-left w-full group ${
+            (isEncrypted || autoLockEnabled)
+              ? "bg-slate-500/5 text-slate-400 cursor-not-allowed opacity-50" 
+              : "bg-orange-500/10 hover:bg-orange-500/20 text-orange-500"
+          }`}
+        >
+          <Icon icon="material-symbols:restart-alt-rounded" className="w-4 h-4 opacity-80 group-hover:opacity-100 transition-opacity" />
+          <span className="whitespace-nowrap">현재 상태 초기화</span>
+        </button>
+      </Tooltip>
 
       <div className="my-1 border-t border-[var(--border-color)] opacity-30" />
 

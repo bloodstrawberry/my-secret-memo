@@ -41,7 +41,7 @@ export function HistoryCalendar({ onSelectDate, disabled }: HistoryCalendarProps
   const { viewingDate, isReadOnly } = useHistoryStore();
   const { autoLockEnabled, sessionKey } = useAutoLockStore();
 
-  const isLocked = disabled || (autoLockEnabled && !sessionKey);
+  const isLocked = disabled;
   const todayKey = getTodayKey();
 
   const loadDates = useCallback(async () => {

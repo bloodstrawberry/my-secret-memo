@@ -5,6 +5,7 @@ import { useAutoLockStore } from "@/app/store/auto-lock-store";
 import { useHistoryStore } from "@/app/store/history-store";
 import { HistoryCalendar } from "./history-calendar";
 import { Icon } from "@iconify/react";
+import Tooltip from "@mui/material/Tooltip";
 
 interface HeaderProps {
   isEncrypted: boolean;
@@ -35,7 +36,7 @@ export function Header({
   loadHistoryDate,
   deleteHistoryDate
 }: HeaderProps) {
-  const keyError = useAutoLockStore(state => state.keyError);
+  const { keyError, autoLockEnabled } = useAutoLockStore();
   const { viewingDate, isReadOnly } = useHistoryStore();
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
@@ -68,13 +69,51 @@ export function Header({
             NEXT NOTEPAD
             <span className="px-1.5 py-0.5 rounded text-[10px] bg-cyan-500/10 text-cyan-500 border border-cyan-500/20 font-mono font-medium">v1.0.6</span>
 
-            <SettingsButton />
+            {!isReadOnly && <SettingsButton />}
 
             {/* History Calendar - between Settings and Lock */}
-            <HistoryCalendar
-              onSelectDate={loadHistoryDate}
-              disabled={isEncrypted}
-            />
+            <Tooltip 
+              title={(isEncrypted && !isReadOnly)
+                ? "잠금을 해제해야 이력을 볼 수 있습니다. 먼저 잠금을 해제해주세요." 
+                : (isEncrypted && isReadOnly)
+                  ? "다른 날짜로 이동하거나 오늘로 돌아갈 수 있습니다."
+                  : autoLockEnabled 
+                    ? "AUTO LOCK이 활성화된 상태에서는 이력을 볼 수 없습니다. AUTO LOCK을 먼저 해제해주세요." 
+                    : ""}
+              arrow
+              placement="bottom"
+              disableHoverListener={!isEncrypted || isReadOnly}
+              slotProps={{
+                tooltip: {
+                  sx: {
+                    bgcolor: 'rgba(15, 23, 42, 0.9)',
+                    backdropFilter: 'blur(8px)',
+                    border: '1px solid var(--border-color)',
+                    color: '#fff',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    padding: '8px 12px',
+                    borderRadius: '12px',
+                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                    whiteSpace: "nowrap",
+                    maxWidth: "none",
+                    '& .MuiTooltip-arrow': {
+                      color: 'rgba(15, 23, 42, 0.9)',
+                      '&::before': {
+                        border: '1px solid var(--border-color)',
+                      }
+                    }
+                  }
+                }
+              }}
+            >
+              <div>
+                <HistoryCalendar
+                  onSelectDate={loadHistoryDate}
+                  disabled={isEncrypted && !isReadOnly}
+                />
+              </div>
+            </Tooltip>
 
             {isReadOnly && viewingDate && (
               <button
@@ -87,14 +126,14 @@ export function Header({
             )}
 
             <button
-              onClick={isReadOnly ? undefined : toggleEncryption}
-              disabled={isReadOnly}
-              title={isReadOnly ? "과거 이력은 잠금 설정을 변경할 수 없습니다" : (isEncrypted ? "암호화 해제" : "암호화 잠금")}
-              className={`ml-0 p-1.5 rounded-lg transition-all flex items-center justify-center ${isReadOnly
-                ? "opacity-30 cursor-not-allowed text-slate-400"
-                : isEncrypted
+              onClick={toggleEncryption}
+              title={isReadOnly 
+                ? (isEncrypted ? "이력 잠금 해제" : "과거 이력은 다시 잠글 수 없습니다") 
+                : (isEncrypted ? "암호화 해제" : "암호화 잠금")}
+              className={`ml-0 p-1.5 rounded-lg transition-all flex items-center justify-center ${
+                isEncrypted
                   ? "bg-red-500/10 text-red-500 hover:bg-red-500/20"
-                  : "bg-slate-500/10 text-slate-400 hover:bg-slate-500/20"
+                  : (isReadOnly ? "opacity-30 cursor-not-allowed text-slate-400" : "bg-slate-500/10 text-slate-400 hover:bg-slate-500/20")
                 }`}
             >
               {isEncrypted ? (

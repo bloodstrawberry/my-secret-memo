@@ -21,11 +21,13 @@ export const DEFAULT_SETTINGS: EditorSettings = {
 interface SettingsContextType {
   settings: EditorSettings;
   updateSettings: (newSettings: Partial<EditorSettings>) => void;
+  resetData: (type?: "options" | "memos" | "todos" | "page" | "all") => void;
 }
 
 export const SettingsContext = createContext<SettingsContextType>({
   settings: DEFAULT_SETTINGS,
   updateSettings: () => { },
+  resetData: () => { },
 });
 
 export const useSettings = () => useContext(SettingsContext);
