@@ -60,7 +60,7 @@ export function Header({
     <header className="px-6 py-4 flex justify-between items-center bg-[var(--header-bg)] border-b border-[var(--border-color)] backdrop-blur-xl z-10 shrink-0 transition-all duration-300">
       <div className="flex items-center gap-4">
         <div className="w-11 h-11 rounded-xl overflow-hidden shadow-lg shadow-cyan-500/10 flex items-center justify-center transition-transform hover:scale-110 duration-300">
-          <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
+          <img src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/logo.png`} alt="Logo" className="w-full h-full object-contain" />
         </div>
         <div>
           <h1 className="text-xl font-black tracking-tight text-[var(--foreground)] flex items-center gap-2">
