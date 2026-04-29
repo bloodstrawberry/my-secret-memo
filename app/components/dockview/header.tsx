@@ -59,10 +59,8 @@ export function Header({
   return (
     <header className="px-6 py-4 flex justify-between items-center bg-[var(--header-bg)] border-b border-[var(--border-color)] backdrop-blur-xl z-10 shrink-0 transition-all duration-300">
       <div className="flex items-center gap-4">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-          </svg>
+        <div className="w-11 h-11 rounded-xl overflow-hidden shadow-lg shadow-cyan-500/10 flex items-center justify-center transition-transform hover:scale-110 duration-300">
+          <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
         </div>
         <div>
           <h1 className="text-xl font-black tracking-tight text-[var(--foreground)] flex items-center gap-2">
