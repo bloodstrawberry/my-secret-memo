@@ -80,7 +80,7 @@ export function Header({
                     : ""}
               arrow
               placement="bottom"
-              disableHoverListener={!isEncrypted || isReadOnly}
+              disableHoverListener={!(isEncrypted && !isReadOnly) && !autoLockEnabled}
               slotProps={{
                 tooltip: {
                   sx: {
@@ -108,7 +108,7 @@ export function Header({
               <div>
                 <HistoryCalendar
                   onSelectDate={loadHistoryDate}
-                  disabled={isEncrypted && !isReadOnly}
+                  disabled={(isEncrypted && !isReadOnly) || autoLockEnabled}
                 />
               </div>
             </Tooltip>
