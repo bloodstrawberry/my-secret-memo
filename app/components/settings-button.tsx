@@ -10,9 +10,10 @@ import { showSecurePrompt } from "@/app/components/secure-prompt";
 import { toast } from "@/app/components/toast";
 import { memoDB } from "@/app/library/indexDB";
 import { DEFAULT_MEMOS, DEFAULT_TITLES } from "@/app/constants/default";
-import { encryptMemosText, hashPassword } from "@/app/components/dockview/utils";
+import { encryptMemosText, hashPassword, getTodayKey } from "@/app/components/dockview/utils";
 import { useLoadingOverlay } from "@/app/store/loading-overlay-store";
 import { useHistoryStore } from "@/app/store/history-store";
+import { useVisualToggleStore } from "@/app/store/visual-toggle-store";
 import { useEffect, useRef } from "react";
 import Tooltip from "@mui/material/Tooltip";
 
@@ -218,6 +219,7 @@ function AutoLockToggle() {
   const { autoLockEnabled, setAutoLockEnabled, setSessionKey, keyError, setKeyError, sessionKey } = useAutoLockStore();
   const { memos, titles, isEncrypted } = useMemoStore();
   const { isReadOnly } = useHistoryStore();
+  const { settings } = useSettings();
 
   const isDisabled = keyError || isEncrypted || isReadOnly;
 
@@ -252,6 +254,25 @@ function AutoLockToggle() {
         delete data.encryptedKey;
 
         await memoDB.setItem(STORAGE_KEY, data);
+
+        // Update today's history snapshot immediately with the lock state
+        try {
+          const todayKey = getTodayKey();
+          const historyEntry = {
+            memos: data.memos,
+            titles: data.titles,
+            settings: settings,
+            theme: document.documentElement.classList.contains("dark") ? "dark" : "light",
+            layout: data.layout,
+            visualToggles: useVisualToggleStore.getState(),
+            savedAt: data.lastUpdated,
+            isEncrypted: true,
+            keyHash: data.keyHash,
+          };
+          await memoDB.setHistoryItem(todayKey, historyEntry);
+        } catch (histErr) {
+          console.error("Auto lock history update failed", histErr);
+        }
 
         // Store key in memory only (NOT persisted)
         setSessionKey(key);

@@ -9,18 +9,11 @@ import { useAutoLockStore } from "@/app/store/auto-lock-store";
 import { useHistoryStore } from "@/app/store/history-store";
 import { useLoadingOverlay } from "@/app/store/loading-overlay-store";
 import { EditorSettings, DEFAULT_SETTINGS } from "@/app/context/settings-context";
-import { encryptMemosText, decryptMemosText, hashPassword } from "./utils";
+import { encryptMemosText, decryptMemosText, hashPassword, getTodayKey } from "./utils";
 import { DockviewReadyEvent } from "dockview";
 
 const MAX_HISTORY = 100;
 
-function getTodayKey(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
 
 export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] | null>) {
   const [memos, setMemos] = useState<Record<string, any>>({});
@@ -176,6 +169,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
             visualToggles: currentState.visualToggles,
             savedAt: currentState.lastUpdated,
             isEncrypted: currentState.isEncrypted || false,
+            keyHash: currentState.keyHash || null,
           };
           // Enforce max 100 history entries
           const keys = await memoDB.getAllHistoryKeys();
@@ -892,6 +886,26 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
           }
 
           await memoDB.setItem(STORAGE_KEY, data);
+
+          // Update today's history snapshot immediately with the lock state
+          try {
+            const todayKey = getTodayKey();
+            const historyEntry = {
+              memos: data.memos,
+              titles: data.titles,
+              settings: stateRef.current.settings,
+              theme: stateRef.current.isDarkMode ? "dark" : "light",
+              layout: data.layout,
+              visualToggles: useVisualToggleStore.getState(),
+              savedAt: data.lastUpdated,
+              isEncrypted: true,
+              keyHash: data.keyHash,
+            };
+            await memoDB.setHistoryItem(todayKey, historyEntry);
+          } catch (histErr) {
+            console.error("Manual lock history update failed", histErr);
+          }
+
           setIsEncrypted(true);
           isEncryptedRef.current = true;
           setMemos(DEFAULT_MEMOS);
@@ -933,6 +947,14 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
             const snapshot = await memoDB.getHistoryItem<any>(viewingDate);
             if (!snapshot || !snapshot.memos) {
               useLoadingOverlay.getState().hide();
+              return;
+            }
+
+            // If snapshot has keyHash, validate it first
+            if (snapshot.keyHash && hashPassword(key) !== snapshot.keyHash) {
+              useLoadingOverlay.getState().hide();
+              useAutoLockStore.getState().setKeyError(true);
+              toast.error("잘못된 비밀번호입니다.");
               return;
             }
 
@@ -1215,26 +1237,6 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
           }
         }, 0);
       }
-    }
-
-    setMemos(snapshotMemos || {});
-    if (snapshot.titles) setTitles(snapshot.titles);
-
-    if (snapshot.layout && apiRef.current) {
-      setTimeout(() => {
-        if (apiRef.current) {
-          (window as any).__isSyncingLayout = true;
-          try {
-            apiRef.current.fromJSON(snapshot.layout);
-            if (snapshot.titles) {
-              apiRef.current.panels.forEach(p => {
-                if (snapshot.titles[p.id]) p.api.setTitle(snapshot.titles[p.id]);
-              });
-            }
-          } catch (e) { console.error("Layout restore failed on snapshot load", e); }
-          finally { (window as any).__isSyncingLayout = false; }
-        }
-      }, 0);
     }
 
     if (snapshot.visualToggles) {
