@@ -6,6 +6,7 @@ Next.js 기반으로 구축되었으며, 오프라인 환경에서도 IndexedDB�
 - **GitHub Pages**: [https://bloodstrawberry.github.io/my-secret-memo/](https://bloodstrawberry.github.io/my-secret-memo/)
 - **Vercel**: [https://my-secret-memo.vercel.app/](https://my-secret-memo.vercel.app/)
 
+https://github.com/user-attachments/assets/dfc32e42-6884-4b73-b49e-cfde98b62531
 
 ## ✨ 주요 기능 (Key Features)
 
@@ -33,6 +34,10 @@ Next.js 기반으로 구축되었으며, 오프라인 환경에서도 IndexedDB�
 ### 🌓 직관적인 테마 지원
 - 눈의 피로를 덜어주는 **다크 모드(Dark Mode)** 와 **라이트 모드(Light Mode)** 전환을 지원합니다.
 - 각종 사용자 편의를 위한 시각적 토글 및 세팅 환경을 지원합니다.
+
+---
+
+<img width="1821" height="2671" alt="manual" src="https://github.com/user-attachments/assets/69e1fc79-5e30-4a65-8d66-deb2431fd219" />
 
 ---
 
@@ -66,7 +71,7 @@ pnpm dev
 - **Framework**: Next.js 15, React 19
 - **Layout & Drag**: Dockview, dnd-kit
 - **Editor**: TipTap (WYSIWYG/Markdown)
-- **Spreadsheet**: Handsontable / Fortune Sheet
+- **Spreadsheet**: Fortune Sheet
 - **Database**: Dexie.js (IndexedDB)
 - **Styling**: Tailwind CSS, Material UI (MUI), Framer Motion
 - **State Management**: Zustand
