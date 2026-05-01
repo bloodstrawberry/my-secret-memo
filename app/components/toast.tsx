@@ -276,7 +276,10 @@ export const toast = {
           <button
             onClick={() => { options.btn2.onClick(); sonnerToast.dismiss(toastId); }}
             className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95 border border-[var(--border-color)] ${
-              options.btn2.color === "red" ? "text-red-500 border-red-500/30 hover:bg-red-500/10" : "text-cyan-500 hover:bg-cyan-500/10"
+              options.btn2.color === "red" ? "text-red-500 border-red-500/30 hover:bg-red-500/10" : 
+              options.btn2.color === "emerald" ? "text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/10" :
+              options.btn2.color === "amber" ? "text-amber-500 border-amber-500/30 hover:bg-amber-500/10" :
+              "text-cyan-500 hover:bg-cyan-500/10"
             }`}
           >
             {options.btn2.label}
@@ -284,7 +287,10 @@ export const toast = {
           <button
             onClick={() => { options.btn1.onClick(); sonnerToast.dismiss(toastId); }}
             className={`px-6 py-1.5 rounded-lg text-xs font-bold text-white shadow-lg transition-all active:scale-95 ${
-              options.btn1.color === "red" ? "bg-red-500 shadow-red-500/20 hover:bg-red-600" : "bg-cyan-500 shadow-cyan-500/20 hover:bg-cyan-600"
+              options.btn1.color === "red" ? "bg-red-500 shadow-red-500/20 hover:bg-red-600" : 
+              options.btn1.color === "emerald" ? "bg-emerald-500 shadow-emerald-500/20 hover:bg-emerald-600" :
+              options.btn1.color === "amber" ? "bg-amber-500 shadow-amber-500/20 hover:bg-amber-600" :
+              "bg-cyan-500 shadow-cyan-500/20 hover:bg-cyan-600"
             }`}
           >
             {options.btn1.label}

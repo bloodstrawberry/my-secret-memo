@@ -551,6 +551,7 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
         {
           btn1: {
             label: "백업",
+            color: "red",
             onClick: async () => {
               await persistState({ silent: true });
               await downloadData("full");
