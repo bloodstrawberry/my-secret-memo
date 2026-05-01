@@ -116,7 +116,7 @@ export default function ManualModal({ isOpen, onClose }: ManualModalProps) {
               <div className="px-8 py-6 border-b border-[var(--border-color)] flex items-center justify-between bg-[var(--header-bg)]/50 backdrop-blur-md relative z-10">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 flex items-center justify-center">
-                    <img src="/logo.png" alt="My Secret Memo Logo" className="w-11 h-11 object-contain" />
+                    <img src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/logo.png`} alt="My Secret Memo Logo" className="w-11 h-11 object-contain" />
                   </div>
                   <div>
                     <h2 className="text-xl font-black tracking-tight text-[var(--foreground)] uppercase">User Manual</h2>
