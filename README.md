@@ -3,6 +3,10 @@
 My Secret Memo는 개인의 중요한 정보와 일정, 데이터 등을 안전하게 관리할 수 있는 **보안 중심의 다목적 개인용 작업 공간(Workspace)** 입니다.   
 Next.js 기반으로 구축되었으며, 오프라인 환경에서도 IndexedDB를 통해 브라우저 내에 데이터를 안전하게 보관합니다.
 
+- **GitHub Pages**: [https://bloodstrawberry.github.io/my-secret-memo/](https://bloodstrawberry.github.io/my-secret-memo/)
+- **Vercel**: [https://my-secret-memo.vercel.app/](https://my-secret-memo.vercel.app/)
+
+
 ## ✨ 주요 기능 (Key Features)
 
 ### 🔒 암호화 기능 및 자동 암호화 (Security & Auto-Encryption)
