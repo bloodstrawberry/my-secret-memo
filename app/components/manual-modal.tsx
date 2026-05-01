@@ -54,7 +54,7 @@ const MiniDockview = () => {
 };
 
 const FeatureCard = ({ icon, title, description, colorClass, iconColor }: { icon: string, title: string, description: React.ReactNode, colorClass: string, iconColor: string }) => (
-  <div className={`p-6 rounded-2xl border border-[var(--border-color)] bg-[var(--panel-bg)] hover:shadow-xl transition-all duration-300 group`}>
+  <div className={`p-6 rounded-2xl border border-[var(--border-color)] bg-[var(--panel-bg)] hover:shadow-xl transition-all duration-300 group flex flex-col items-center text-center`}>
     <div className={`w-12 h-12 rounded-xl ${colorClass} flex items-center justify-center mb-4 shadow-lg`}>
       <Icon icon={icon} className={`w-6 h-6 ${iconColor}`} />
     </div>
@@ -92,16 +92,21 @@ export default function ManualModal({ isOpen, onClose }: ManualModalProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
             onClick={onClose}
-            className="fixed inset-0 bg-slate-950/40 backdrop-blur-md z-[9999] flex items-center justify-center p-4 md:p-8"
+            className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 md:p-8"
           >
             {/* Modal Container */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              initial={{ opacity: 0, scale: 0.98, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              exit={{ opacity: 0, scale: 0.98, y: 10 }}
+              transition={{
+                duration: 0.15,
+                ease: "easeOut"
+              }}
               onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-[85vw] h-full max-h-[90vh] bg-[var(--panel-bg)] border border-[var(--border-color)] rounded-[32px] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] overflow-hidden flex flex-col"
+              className="relative w-full max-w-[60vw] h-full max-h-[90vh] bg-[var(--panel-bg)] border border-[var(--border-color)] rounded-[32px] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] overflow-hidden flex flex-col will-change-transform"
             >
               {/* Decorative Background */}
               <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/10 blur-[120px] rounded-full -mr-48 -mt-48 pointer-events-none" />
@@ -110,8 +115,8 @@ export default function ManualModal({ isOpen, onClose }: ManualModalProps) {
               {/* Header */}
               <div className="px-8 py-6 border-b border-[var(--border-color)] flex items-center justify-between bg-[var(--header-bg)]/50 backdrop-blur-md relative z-10">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-400 to-indigo-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-                    <Icon icon="mdi:book-open-variant" className="w-6 h-6 text-white" />
+                  <div className="w-12 h-12 flex items-center justify-center">
+                    <img src="/logo.png" alt="My Secret Memo Logo" className="w-11 h-11 object-contain" />
                   </div>
                   <div>
                     <h2 className="text-xl font-black tracking-tight text-[var(--foreground)] uppercase">User Manual</h2>
@@ -133,11 +138,11 @@ export default function ManualModal({ isOpen, onClose }: ManualModalProps) {
                   {/* Introduction */}
                   <section className="text-center space-y-4">
                     <h3 className="text-3xl md:text-4xl font-black text-[var(--foreground)] tracking-tight">
-                      당신의 비밀스러운 <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-500">메모장</span>
+                      나만의 비밀 <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-500">메모장</span>
                     </h3>
                     <p className="text-base text-[var(--foreground)] opacity-60 max-w-3xl mx-auto leading-relaxed">
                       My Secret Memo는 중요한 정보와 일정을 안전하게 관리하는 <strong>보안 중심 작업 공간</strong>입니다.<br className="hidden md:block" />
-                      모든 데이터는 브라우저 내부(IndexedDB)에만 저장되어 외부로 절대 유출되지 않습니다.
+                      모든 데이터는 <strong className="text-red-500 font-black">브라우저 내부에만 저장</strong>되어 <strong className="text-red-500 font-black">외부로 절대 유출되지 않습니다.</strong>
                     </p>
                   </section>
 
@@ -174,7 +179,7 @@ export default function ManualModal({ isOpen, onClose }: ManualModalProps) {
 
                   {/* Layout & Workspace */}
                   <section className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                    <div className="space-y-6">
+                    <div className="space-y-6 flex flex-col items-center text-center">
                       <div className="flex items-center gap-3">
                         <div className="w-1 h-6 bg-indigo-500 rounded-full" />
                         <h3 className="text-xl font-bold text-[var(--foreground)]">자유로운 레이아웃</h3>
@@ -205,7 +210,7 @@ export default function ManualModal({ isOpen, onClose }: ManualModalProps) {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       <div className="space-y-6">
-                        <div className="p-6 rounded-2xl bg-red-500/5 border border-red-500/10 space-y-4">
+                        <div className="p-6 rounded-2xl bg-red-500/5 border border-red-500/10 space-y-4 flex flex-col items-center text-center">
                           <h4 className="text-base font-bold flex items-center gap-2 text-red-500">
                             <Icon icon="mdi:lock-outline" /> 탭별 암호화 잠금
                           </h4>
@@ -214,14 +219,14 @@ export default function ManualModal({ isOpen, onClose }: ManualModalProps) {
                             암호화된 탭은 비밀번호 입력 없이는<br />
                             내용을 절대 볼 수 없습니다.
                           </p>
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 justify-center">
                             <MockHeaderAction icon="material-symbols:visibility-outline" title="공개 상태" />
                             <MockHeaderAction icon="material-symbols:visibility-off-outline" title="암호화 잠금" active color="text-red-500" />
                           </div>
                         </div>
                       </div>
                       <div className="space-y-6">
-                        <div className="p-6 rounded-2xl bg-amber-500/5 border border-amber-500/10 space-y-4">
+                        <div className="p-6 rounded-2xl bg-amber-500/5 border border-amber-500/10 space-y-4 flex flex-col items-center text-center">
                           <h4 className="text-base font-bold flex items-center gap-2 text-amber-500">
                             <Icon icon="mdi:shield-sync-outline" /> 자동 잠금 (Auto Lock)
                           </h4>
@@ -230,7 +235,7 @@ export default function ManualModal({ isOpen, onClose }: ManualModalProps) {
                             자동으로 모든 데이터가 잠깁니다.<br />
                             철저한 보안을 위한 필수 기능입니다.
                           </p>
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 justify-center">
                             <MockHeaderAction icon="mdi:cog-outline" title="환경 설정" />
                             <MockHeaderAction icon="mdi:lock-reset" title="재접속 시 잠금" />
                           </div>
@@ -247,7 +252,7 @@ export default function ManualModal({ isOpen, onClose }: ManualModalProps) {
                       <h3 className="text-xl font-bold text-[var(--foreground)]">데이터 이력 및 백업</h3>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      <div className="flex items-start gap-6">
+                      <div className="flex flex-col items-center text-center gap-4">
                         <div className="w-12 h-12 rounded-xl bg-cyan-500/10 flex items-center justify-center shrink-0">
                           <Icon icon="mdi:history" className="w-6 h-6 text-cyan-500" />
                         </div>
@@ -259,7 +264,7 @@ export default function ManualModal({ isOpen, onClose }: ManualModalProps) {
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-start gap-6">
+                      <div className="flex flex-col items-center text-center gap-4">
                         <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
                           <Icon icon="mdi:file-export-outline" className="w-6 h-6 text-emerald-500" />
                         </div>
