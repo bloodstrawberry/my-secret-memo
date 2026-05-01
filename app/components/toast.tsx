@@ -51,7 +51,7 @@ export const Toaster = () => {
         [data-sonner-toast] {
           width: var(--width) !important;
           max-width: var(--max-width) !important;
-          min-width: fit-content !important;
+          min-width: 400px !important;
           padding: 12px 16px !important;
           font-size: 14px !important;
           white-space: nowrap !important;
@@ -62,10 +62,11 @@ export const Toaster = () => {
           gap: 10px !important;
         }
         [data-sonner-toast] [data-content] {
-          flex: initial !important;
-          width: auto !important;
+          flex: 1 !important;
           display: flex !important;
+          flex-direction: column !important;
           align-items: center !important;
+          justify-content: center !important;
         }
         [data-sonner-toast] [data-icon] {
           display: flex !important;
@@ -79,7 +80,8 @@ export const Toaster = () => {
           margin-bottom: 0 !important;
           display: flex !important;
           align-items: center !important;
-          text-align: left !important;
+          justify-content: center !important;
+          text-align: center !important;
         }
         [data-sonner-toast] [data-description] {
           color: var(--foreground) !important;
@@ -272,7 +274,7 @@ export const toast = {
       duration: Infinity,
       className: isDanger ? "!border-red-500/50 !bg-red-500/5" : "",
       description: (
-        <div className="flex justify-end gap-2 mt-3 w-full min-w-[350px] whitespace-nowrap">
+        <div className="flex justify-center gap-2 mt-3 w-full whitespace-nowrap">
           <button
             onClick={() => { options.btn2.onClick(); sonnerToast.dismiss(toastId); }}
             className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95 border border-[var(--border-color)] ${
@@ -303,7 +305,7 @@ export const toast = {
           </button>
         </div>
       ),
-      icon: isDanger ? <Icon icon="material-symbols:warning-outline" className="w-5 h-5 text-red-500" /> : <Icon icon="material-symbols:help-outline" className="w-5 h-5 text-cyan-500" />,
+      icon: isDanger ? <Icon icon="material-symbols:warning-outline" className="w-7 h-7 text-red-500" /> : <Icon icon="material-symbols:help-outline" className="w-7 h-7 text-cyan-500" />,
     });
   },
 };
