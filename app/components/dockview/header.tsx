@@ -68,7 +68,7 @@ export function Header({
         <div>
           <h1 className="text-xl font-black tracking-tight text-[var(--foreground)] flex items-center gap-2">
             NEXT NOTEPAD
-            <span className="px-1.5 py-0.5 rounded text-[10px] bg-cyan-500/10 text-cyan-500 border border-cyan-500/20 font-mono font-medium">v1.0.16</span>
+            <span className="px-1.5 py-0.5 rounded text-[10px] bg-cyan-500/10 text-cyan-500 border border-cyan-500/20 font-mono font-medium">v1.0.17</span>
 
             <div className="flex items-center gap-1.5 ml-1">
               {!isReadOnly && (
