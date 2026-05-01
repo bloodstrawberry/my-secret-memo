@@ -1,6 +1,8 @@
 import { RefObject, useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
 import SettingsButton from "@/app/components/settings-button";
+import ManualModal from "@/app/components/manual-modal";
 import { useAutoLockStore } from "@/app/store/auto-lock-store";
 import { useHistoryStore } from "@/app/store/history-store";
 import { HistoryCalendar } from "./history-calendar";
@@ -40,6 +42,7 @@ export function Header({
   const { viewingDate, isReadOnly } = useHistoryStore();
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
+  const [showManual, setShowManual] = useState(false);
   const addMenuRef = useRef<HTMLDivElement>(null);
   const downloadMenuRef = useRef<HTMLDivElement>(null);
 
@@ -67,87 +70,101 @@ export function Header({
             NEXT NOTEPAD
             <span className="px-1.5 py-0.5 rounded text-[10px] bg-cyan-500/10 text-cyan-500 border border-cyan-500/20 font-mono font-medium">v1.0.15</span>
 
-            {!isReadOnly && <SettingsButton />}
+            <div className="flex items-center gap-1.5 ml-1">
+              {!isReadOnly && (
+                <>
+                  <button
+                    onClick={() => setShowManual(true)}
+                    title="사용 설명서"
+                    className="p-1.5 rounded-lg hover:bg-slate-500/10 text-[var(--foreground)] opacity-40 hover:opacity-100 transition-all flex items-center justify-center"
+                  >
+                    <Icon icon="mdi:help-circle-outline" className="w-5 h-5" />
+                  </button>
+                  <SettingsButton />
+                </>
+              )}
 
-            {/* History Calendar - between Settings and Lock */}
-            <Tooltip 
-              title={(isEncrypted && !isReadOnly)
-                ? "잠금을 해제해야 이력을 볼 수 있습니다. 먼저 잠금을 해제해주세요." 
-                : (isEncrypted && isReadOnly)
-                  ? "다른 날짜로 이동하거나 오늘로 돌아갈 수 있습니다."
-                  : autoLockEnabled 
-                    ? "AUTO LOCK이 활성화된 상태에서는 이력을 볼 수 없습니다. AUTO LOCK을 먼저 해제해주세요." 
-                    : ""}
-              arrow
-              placement="bottom"
-              disableHoverListener={!(isEncrypted && !isReadOnly) && !autoLockEnabled}
-              slotProps={{
-                tooltip: {
-                  sx: {
-                    bgcolor: 'rgba(15, 23, 42, 0.9)',
-                    backdropFilter: 'blur(8px)',
-                    border: '1px solid var(--border-color)',
-                    color: '#fff',
-                    fontSize: '11px',
-                    fontWeight: 'bold',
-                    padding: '8px 12px',
-                    borderRadius: '12px',
-                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-                    whiteSpace: "nowrap",
-                    maxWidth: "none",
-                    '& .MuiTooltip-arrow': {
-                      color: 'rgba(15, 23, 42, 0.9)',
-                      '&::before': {
-                        border: '1px solid var(--border-color)',
+              <ManualModal isOpen={showManual} onClose={() => setShowManual(false)} />
+
+              {/* History Calendar - between Settings and Lock */}
+              <Tooltip
+                title={(isEncrypted && !isReadOnly)
+                  ? "잠금을 해제해야 이력을 볼 수 있습니다. 먼저 잠금을 해제해주세요."
+                  : (isEncrypted && isReadOnly)
+                    ? "다른 날짜로 이동하거나 오늘로 돌아갈 수 있습니다."
+                    : autoLockEnabled
+                      ? "AUTO LOCK이 활성화된 상태에서는 이력을 볼 수 없습니다. AUTO LOCK을 먼저 해제해주세요."
+                      : ""}
+                arrow
+                placement="bottom"
+                disableHoverListener={!(isEncrypted && !isReadOnly) && !autoLockEnabled}
+                slotProps={{
+                  tooltip: {
+                    sx: {
+                      bgcolor: 'rgba(15, 23, 42, 0.9)',
+                      backdropFilter: 'blur(8px)',
+                      border: '1px solid var(--border-color)',
+                      color: '#fff',
+                      fontSize: '11px',
+                      fontWeight: 'bold',
+                      padding: '8px 12px',
+                      borderRadius: '12px',
+                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                      whiteSpace: "nowrap",
+                      maxWidth: "none",
+                      '& .MuiTooltip-arrow': {
+                        color: 'rgba(15, 23, 42, 0.9)',
+                        '&::before': {
+                          border: '1px solid var(--border-color)',
+                        }
                       }
                     }
                   }
-                }
-              }}
-            >
-              <div>
-                <HistoryCalendar
-                  onSelectDate={loadHistoryDate}
-                  disabled={(isEncrypted && !isReadOnly) || autoLockEnabled}
-                />
-              </div>
-            </Tooltip>
-
-            {isReadOnly && viewingDate && (
-              <button
-                onClick={() => deleteHistoryDate(viewingDate)}
-                title="이력 삭제"
-                className="ml-2 p-1.5 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all flex items-center justify-center"
+                }}
               >
-                <Icon icon="mdi:trash-can-outline" className="w-4 h-4" />
-              </button>
-            )}
+                <div className="flex items-center">
+                  <HistoryCalendar
+                    onSelectDate={loadHistoryDate}
+                    disabled={(isEncrypted && !isReadOnly) || autoLockEnabled}
+                  />
+                </div>
+              </Tooltip>
 
-            <button
-              onClick={toggleEncryption}
-              title={isReadOnly 
-                ? (isEncrypted ? "이력 잠금 해제" : "과거 이력은 다시 잠글 수 없습니다") 
-                : (isEncrypted ? "암호화 해제" : "암호화 잠금")}
-              className={`ml-0 p-1.5 rounded-lg transition-all flex items-center justify-center ${
-                isEncrypted
-                  ? "bg-red-500/10 text-red-500 hover:bg-red-500/20"
-                  : (isReadOnly ? "opacity-30 cursor-not-allowed text-slate-400" : "bg-slate-500/10 text-slate-400 hover:bg-slate-500/20")
-                }`}
-            >
-              {isEncrypted ? (
-                keyError ? (
-                  <Icon icon="mdi:lock-alert-outline" className="w-5 h-5" />
+              {isReadOnly && viewingDate && (
+                <button
+                  onClick={() => deleteHistoryDate(viewingDate)}
+                  title="이력 삭제"
+                  className="p-1.5 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all flex items-center justify-center"
+                >
+                  <Icon icon="mdi:trash-can-outline" className="w-4 h-4" />
+                </button>
+              )}
+
+              <button
+                onClick={toggleEncryption}
+                title={isReadOnly
+                  ? (isEncrypted ? "이력 잠금 해제" : "과거 이력은 다시 잠글 수 없습니다")
+                  : (isEncrypted ? "암호화 해제" : "암호화 잠금")}
+                className={`p-1.5 rounded-lg transition-all flex items-center justify-center ${isEncrypted
+                    ? "bg-red-500/10 text-red-500 hover:bg-red-500/20"
+                    : (isReadOnly ? "opacity-30 cursor-not-allowed text-slate-400" : "bg-slate-500/10 text-slate-400 hover:bg-slate-500/20")
+                  }`}
+              >
+                {isEncrypted ? (
+                  keyError ? (
+                    <Icon icon="mdi:lock-alert-outline" className="w-5 h-5" />
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  )
                 ) : (
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
                   </svg>
-                )
-              ) : (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
-                </svg>
-              )}
-            </button>
+                )}
+              </button>
+            </div>
           </h1>
           <div className="flex items-center gap-2 text-slate-500 text-[10px] font-medium uppercase tracking-widest transition-all duration-300">
             {isReadOnly && viewingDate ? (
