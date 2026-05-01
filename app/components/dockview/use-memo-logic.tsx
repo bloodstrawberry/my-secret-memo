@@ -1256,17 +1256,17 @@ export function useMemoLogic(apiRef: React.RefObject<DockviewReadyEvent["api"] |
 
   // Delete a historical date snapshot
   const deleteHistoryDate = useCallback(async (dateKey: string) => {
-    if (!confirm(`${dateKey} 이력을 삭제하시겠습니까?`)) return;
-
-    try {
-      await memoDB.deleteHistoryItem(dateKey);
-      toast.success(`${dateKey} 이력이 삭제되었습니다.`);
-      // Return to today's data
-      loadHistoryDate(null);
-    } catch (err) {
-      console.error("Failed to delete history", err);
-      toast.error("이력 삭제에 실패했습니다.");
-    }
+    toast.confirm(`${dateKey} 이력을 삭제하시겠습니까?`, async () => {
+      try {
+        await memoDB.deleteHistoryItem(dateKey);
+        toast.success(`${dateKey} 이력이 삭제되었습니다.`);
+        // Return to today's data
+        loadHistoryDate(null);
+      } catch (err) {
+        console.error("Failed to delete history", err);
+        toast.error("이력 삭제에 실패했습니다.");
+      }
+    }, { type: "danger", confirmText: "삭제" });
   }, [loadHistoryDate]);
 
   const setSkipSync = useCallback((skip: boolean) => {
