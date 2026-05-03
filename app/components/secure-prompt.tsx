@@ -15,10 +15,12 @@ interface SecurePromptState {
   isOpen: boolean;
   options: SecurePromptOptions;
   onConfirm: ((value: string) => void) | null;
+  id: number;
 }
 
 // ── Global state for imperative API ──
 let globalSetState: ((state: SecurePromptState) => void) | null = null;
+let globalId = 0;
 
 // ── Imperative API ──
 export function showSecurePrompt(
@@ -30,6 +32,7 @@ export function showSecurePrompt(
     isOpen: true,
     options: { title, ...options },
     onConfirm,
+    id: ++globalId,
   });
 }
 
@@ -279,6 +282,7 @@ export function SecurePromptProvider() {
     isOpen: false,
     options: {},
     onConfirm: null,
+    id: 0,
   });
 
   useEffect(() => {
@@ -289,8 +293,8 @@ export function SecurePromptProvider() {
   }, []);
 
   const handleClose = useCallback(() => {
-    setState({ isOpen: false, options: {}, onConfirm: null });
+    setState(prev => ({ ...prev, isOpen: false }));
   }, []);
 
-  return <SecurePromptModal state={state} onClose={handleClose} />;
+  return <SecurePromptModal key={state.id} state={state} onClose={handleClose} />;
 }

@@ -258,13 +258,18 @@ function AutoLockToggle() {
         // Update today's history snapshot immediately with the lock state
         try {
           const todayKey = getTodayKey();
+          const visualToggleState = useVisualToggleStore.getState();
           const historyEntry = {
             memos: data.memos,
             titles: data.titles,
             settings: settings,
             theme: document.documentElement.classList.contains("dark") ? "dark" : "light",
             layout: data.layout,
-            visualToggles: useVisualToggleStore.getState(),
+            visualToggles: {
+              toolbarVisibility: visualToggleState.toolbarVisibility,
+              tabLocks: visualToggleState.tabLocks,
+              lockedTabs: visualToggleState.lockedTabs,
+            },
             savedAt: data.lastUpdated,
             isEncrypted: true,
             keyHash: data.keyHash,
